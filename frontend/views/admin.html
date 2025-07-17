@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaithMasters Admin Panel</title>
+    <meta name="description" content="FaithMasters admin panel for content and user management">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Admin Styles -->
+    <link rel="stylesheet" href="/assets/css/admin.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Loading FaithMasters Admin Panel...</p>
+    </div>
+
+    <!-- Admin Container -->
+    <div id="adminContainer" class="admin-container" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-shield-alt"></i> FaithMasters</h2>
+                <p>Admin Panel</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item active">
+                        <a href="#" onclick="showSection('dashboard')" class="nav-link">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('users')" class="nav-link">
+                            <i class="fas fa-users"></i>
+                            <span>Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('content')" class="nav-link">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Content</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('comments')" class="nav-link">
+                            <i class="fas fa-comments"></i>
+                            <span>Comments</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('categories')" class="nav-link">
+                            <i class="fas fa-tags"></i>
+                            <span>Categories</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('analytics')" class="nav-link">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="showSection('settings')" class="nav-link">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <div>
+                        <p id="adminUserName">Admin User</p>
+                        <small id="adminUserRole">Administrator</small>
+                    </div>
+                </div>
+                <button onclick="logout()" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <button onclick="showSection('settings')" class="header-btn">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button onclick="refreshCurrentSection()" class="header-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="admin-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalUsers">0</h3>
+                                <p>Total Users</p>
+                                <small class="stat-change" id="newUsersWeek">+0 this week</small>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalContent">0</h3>
+                                <p>Total Content</p>
+                                <small class="stat-change" id="publishedContent">0 published</small>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalComments">0</h3>
+                                <p>Total Comments</p>
+                                <small class="stat-change" id="pendingComments">0 pending</small>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="activeUsers24h">0</h3>
+                                <p>Active Users</p>
+                                <small class="stat-change">Last 24 hours</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card">
+                            <h3>Recent Activity</h3>
+                            <div id="recentActivity" class="activity-list">
+                                <p class="loading">Loading recent activity...</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-card">
+                            <h3>System Status</h3>
+                            <div id="systemStatus" class="system-status">
+                                <p class="loading">Loading system status...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users Section -->
+                <section id="users-section" class="content-section">
+                    <div class="section-header">
+                        <h2>User Management</h2>
+                        <div class="section-actions">
+                            <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                            <select id="userRoleFilter" class="filter-select">
+                                <option value="">All Roles</option>
+                                <option value="user">User</option>
+                                <option value="moderator">Moderator</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <select id="userStatusFilter" class="filter-select">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="banned">Banned</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Joined</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="7" class="loading">Loading users...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="usersPagination" class="pagination"></div>
+                </section>
+
+                <!-- Content Section -->
+                <section id="content-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Content Management</h2>
+                        <div class="section-actions">
+                                            <a href="/admin/views/create-article.html" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Article
+                            </a>
+                            <button onclick="showCreateContentModal('discussion')" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Create Discussion
+                            </button>
+                            <input type="text" id="contentSearch" placeholder="Search content..." class="search-input">
+                            <select id="contentTypeFilter" class="filter-select">
+                                <option value="">All Types</option>
+                                <option value="article">Articles</option>
+                                <option value="discussion">Discussions</option>
+                            </select>
+                            <select id="contentStatusFilter" class="filter-select">
+                                <option value="">All Status</option>
+                                <option value="published">Published</option>
+                                <option value="draft">Draft</option>
+                                <option value="pending">Pending</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="contentTable">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Author</th>
+                                    <th>Status</th>
+                                    <th>Views</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contentTableBody">
+                                <tr>
+                                    <td colspan="7" class="loading">Loading content...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="contentPagination" class="pagination"></div>
+                </section>
+
+                <!-- Comments Section -->
+                <section id="comments-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Comment Moderation</h2>
+                        <div class="section-actions">
+                            <select id="commentStatusFilter" class="filter-select">
+                                <option value="pending">Pending</option>
+                                <option value="published">Published</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="commentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Comment</th>
+                                    <th>Author</th>
+                                    <th>Content</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commentsTableBody">
+                                <tr>
+                                    <td colspan="6" class="loading">Loading comments...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="commentsPagination" class="pagination"></div>
+                </section>
+
+                <!-- Categories Section -->
+                <section id="categories-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Category Management</h2>
+                        <div class="section-actions">
+                            <button onclick="showCreateCategoryModal()" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Category
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="categoriesList" class="categories-list">
+                        <p class="loading">Loading categories...</p>
+                    </div>
+                </section>
+
+                <!-- Analytics Section -->
+                <section id="analytics-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Platform Analytics</h2>
+                        <div class="section-actions">
+                            <select id="analyticsTimeframe" class="filter-select">
+                                <option value="24h">Last 24 Hours</option>
+                                <option value="7d" selected>Last 7 Days</option>
+                                <option value="30d">Last 30 Days</option>
+                                <option value="90d">Last 90 Days</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h3>User Growth</h3>
+                            <canvas id="userGrowthChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Content Activity</h3>
+                            <canvas id="contentActivityChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Top Content</h3>
+                            <div id="topContentList" class="top-list">
+                                <p class="loading">Loading top content...</p>
+                            </div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Popular Categories</h3>
+                            <div id="topCategoriesList" class="top-list">
+                                <p class="loading">Loading popular categories...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settings-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Application Settings</h2>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <h3>General Settings</h3>
+                            <form id="generalSettingsForm">
+                                <div class="form-group">
+                                    <label for="siteName">Site Name</label>
+                                    <input type="text" id="siteName" name="site_name" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="siteDescription">Site Description</label>
+                                    <textarea id="siteDescription" name="site_description" class="form-control"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="registrationEnabled" name="registration_enabled">
+                                        Enable User Registration
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="contentModeration" name="content_moderation">
+                                        Enable Content Moderation
+                                    </label>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3>Content Settings</h3>
+                            <form id="contentSettingsForm">
+                                <div class="form-group">
+                                    <label for="maxContentLength">Max Content Length</label>
+                                    <input type="number" id="maxContentLength" name="max_content_length" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="paginationLimit">Pagination Limit</label>
+                                    <input type="number" id="paginationLimit" name="pagination_limit" class="form-control">
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3>System Actions</h3>
+                            <div class="action-buttons">
+                                <button onclick="runCleanup()" class="btn btn-warning">
+                                    <i class="fas fa-broom"></i> Run Cleanup
+                                </button>
+                                <button onclick="exportData()" class="btn btn-info">
+                                    <i class="fas fa-download"></i> Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button onclick="saveAllSettings()" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit User</h3>
+                <span class="close" onclick="closeModal('userModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="user-info-section">
+                    <div class="user-details">
+                        <div class="detail-row">
+                            <label>User ID:</label>
+                            <span id="userIdDisplay">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Member Since:</label>
+                            <span id="userJoinDate">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Last Login:</label>
+                            <span id="userLastLogin">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="userForm">
+                    <div class="form-section">
+                        <h4>Profile Information</h4>
+                        
+                        <div class="form-group">
+                            <label for="userEmail">Email Address</label>
+                            <input type="email" id="userEmail" name="email" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="userFirstName">First Name</label>
+                                <input type="text" id="userFirstName" name="firstName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userLastName">Last Name</label>
+                                <input type="text" id="userLastName" name="lastName" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userDisplayName">Display Name</label>
+                            <input type="text" id="userDisplayName" name="displayName" class="form-control">
+                            <small class="form-help">If empty, will use First Name + Last Name</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userFaithTradition">Faith Tradition</label>
+                            <select id="userFaithTradition" name="faithTradition" class="form-control">
+                                <option value="">Select Faith Tradition</option>
+                                <option value="Christianity">Christianity</option>
+                                <option value="Islam">Islam</option>
+                                <option value="Judaism">Judaism</option>
+                                <option value="Buddhism">Buddhism</option>
+                                <option value="Hinduism">Hinduism</option>
+                                <option value="Sikhism">Sikhism</option>
+                                <option value="Jainism">Jainism</option>
+                                <option value="Taoism">Taoism</option>
+                                <option value="Confucianism">Confucianism</option>
+                                <option value="Bahá'í Faith">Bahá'í Faith</option>
+                                <option value="Zoroastrianism">Zoroastrianism</option>
+                                <option value="Indigenous Traditions">Indigenous Traditions</option>
+                                <option value="Secular Humanism">Secular Humanism</option>
+                                <option value="Agnosticism">Agnosticism</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userBio">Bio</label>
+                            <textarea id="userBio" name="bio" class="form-control" rows="3" placeholder="Tell us about yourself..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>Account Settings</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="userRole">Role</label>
+                                <select id="userRole" name="role" class="form-control">
+                                    <option value="user">User</option>
+                                    <option value="moderator">Moderator</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userStatus">Status</label>
+                                <select id="userStatus" name="status" class="form-control">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="banned">Banned</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="userEmailVerified" name="emailVerified">
+                                Email Verified
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>Password Reset</h4>
+                        
+                        <div class="form-group">
+                            <label for="userNewPassword">New Password (Optional)</label>
+                            <input type="password" id="userNewPassword" name="newPassword" class="form-control" autocomplete="new-password" minlength="8">
+                            <small class="form-help">Leave empty to keep current password. Minimum 8 characters.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userConfirmPassword">Confirm New Password</label>
+                            <input type="password" id="userConfirmPassword" name="confirmPassword" class="form-control" autocomplete="new-password" minlength="8">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('userModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="updateUser()" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="categoryModalTitle">Add Category</h3>
+                <span class="close" onclick="closeModal('categoryModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <div class="form-group">
+                        <label for="categoryName">Name</label>
+                        <input type="text" id="categoryName" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryDescription">Description</label>
+                        <textarea id="categoryDescription" name="description" class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryColor">Color</label>
+                        <input type="color" id="categoryColor" name="color" class="form-control" value="#4A90E2">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('categoryModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveCategory()" class="btn btn-primary">Save Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Content Modal -->
+    <div id="createContentModal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="createContentTitle">Create Content</h3>
+                <span class="close" onclick="closeModal('createContentModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="createContentForm">
+                    <input type="hidden" id="contentType" name="type">
+                    
+                    <div class="form-group">
+                        <label for="contentTitle">Title</label>
+                        <input type="text" id="contentTitle" name="title" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contentCategory">Category</label>
+                        <select id="contentCategory" name="categoryId" class="form-control">
+                            <option value="">Select a category</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contentExcerpt">Excerpt (Optional)</label>
+                        <textarea id="contentExcerpt" name="excerpt" class="form-control" rows="2" placeholder="Brief description of your content..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contentBody">Content</label>
+                        <textarea id="contentBody" name="body" class="form-control" rows="8" required placeholder="Share your thoughts, insights, or questions..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contentTags">Tags (Optional)</label>
+                        <input type="text" id="contentTags" name="tags" class="form-control" placeholder="Enter tags separated by commas">
+                        <small class="form-help">Tags help others find your content. Example: prayer, meditation, scripture</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('createContentModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveContent()" class="btn btn-primary">Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="/assets/js/admin.js?v=1.0.1"></script>
+</body>
+</html>

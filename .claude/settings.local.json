@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(npm rebuild:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(npm run seed:*)",
+      "Bash(timeout 10 npm start)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 5 npm start:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(node:*)"
+    ],
+    "deny": []
+  }
+}

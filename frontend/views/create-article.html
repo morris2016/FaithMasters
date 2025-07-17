@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Article - FaithMasters</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --background: #fafafa;
+            --surface: #ffffff;
+            --surface-hover: #f8fafc;
+            --border: #e5e7eb;
+            --border-hover: #d1d5db;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .back-btn:hover {
+            background: var(--surface-hover);
+            color: var(--primary);
+        }
+
+        .title-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-draft {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-editing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--text-primary);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 32px;
+            padding: 32px 24px;
+            min-height: calc(100vh - 64px);
+        }
+
+        .editor-area {
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Title Section */
+        .title-section {
+            padding: 32px 32px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .title-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text-primary);
+            background: transparent;
+            resize: none;
+            overflow: hidden;
+            min-height: 60px;
+        }
+
+        .title-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .subtitle-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            background: transparent;
+            margin-top: 12px;
+            resize: none;
+            overflow: hidden;
+            min-height: 28px;
+        }
+
+        .subtitle-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Enhanced Toolbar */
+        .editor-toolbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            position: sticky;
+            top: 64px;
+            z-index: 50;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-right: 16px;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+
+        .toolbar-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .toolbar-select {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            background: var(--surface);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+            margin: 0 8px;
+        }
+
+        /* Color Picker */
+        .color-group {
+            position: relative;
+        }
+
+        .color-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-indicator {
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .color-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Editor */
+        .editor-content {
+            padding: 0 32px 32px;
+        }
+
+        #editor {
+            border: none;
+            min-height: 600px;
+            position: relative;
+        }
+        
+        #editor .ql-container {
+            cursor: text;
+        }
+
+        .ql-editor {
+            min-height: 580px;
+            font-size: 18px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            padding: 24px 0;
+            cursor: text;
+            outline: none;
+        }
+        
+        .ql-editor:focus {
+            outline: none;
+        }
+
+        .ql-editor.ql-blank::before {
+            color: var(--text-muted);
+            font-style: normal;
+            font-size: 18px;
+        }
+
+        .ql-editor h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 32px 0 16px;
+            line-height: 1.2;
+        }
+
+        .ql-editor h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 28px 0 14px;
+            line-height: 1.3;
+        }
+
+        .ql-editor h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            line-height: 1.4;
+        }
+
+        .ql-editor p {
+            margin: 16px 0;
+        }
+
+        .ql-editor blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 24px;
+            margin: 24px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+            background: var(--surface-hover);
+            padding: 16px 24px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .ql-editor ul, .ql-editor ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        .ql-editor li {
+            margin: 8px 0;
+        }
+
+        .ql-editor pre.ql-syntax {
+            background: #f6f8fa;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .ql-editor pre.ql-syntax .hljs {
+            background: transparent;
+            padding: 0;
+        }
+
+        .ql-editor code {
+            background: var(--surface-hover);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--primary);
+        }
+
+        /* Sidebar Cards */
+        .sidebar-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sidebar-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-card h3 i {
+            color: var(--primary);
+            width: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--surface);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-control:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+
+        .toggle:hover {
+            opacity: 0.8;
+        }
+
+        .toggle:active {
+            transform: scale(0.95);
+        }
+
+        .toggle input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .toggle input:checked + .toggle-slider {
+            transform: translateX(20px);
+        }
+
+        .toggle:has(input:checked),
+        .toggle.checked {
+            background: var(--primary);
+        }
+
+        .toggle.checked:hover {
+            opacity: 0.9;
+        }
+
+        /* Fallback for browsers that don't support :has() */
+        .toggle input:checked {
+            /* This will be handled by JavaScript */
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 16px 8px;
+            background: var(--surface-hover);
+            border-radius: 12px;
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Tags */
+        .tags-input {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 44px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            cursor: text;
+            transition: all 0.2s;
+        }
+
+        .tags-input:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .tag {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+
+        .tag-remove:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .tag-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            flex: 1;
+            min-width: 120px;
+            padding: 4px;
+            font-size: 14px;
+        }
+
+        /* Image Upload */
+        .image-upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--surface-hover);
+        }
+
+        .image-upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .image-upload-zone.drag-over {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: white;
+            font-size: 20px;
+        }
+
+        .upload-text {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .image-preview {
+            margin-top: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .image-remove {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .image-remove:hover {
+            background: var(--error);
+        }
+
+        /* Word Count */
+        .word-count {
+            padding: 16px 32px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-hover);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 24px;
+                padding: 24px 16px;
+            }
+
+            .sidebar {
+                order: -1;
+            }
+
+            .header-content {
+                padding: 0 16px;
+            }
+
+            .title-input {
+                font-size: 32px;
+            }
+
+            .subtitle-input {
+                font-size: 18px;
+            }
+
+            .editor-toolbar {
+                padding: 12px 16px;
+                gap: 2px;
+            }
+
+            .toolbar-group {
+                margin-right: 8px;
+            }
+
+            .title-section {
+                padding: 24px 16px;
+            }
+
+            .editor-content {
+                padding: 0 16px 24px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-actions {
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .btn .fas {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .title-input {
+                font-size: 28px;
+            }
+
+            .subtitle-input {
+                font-size: 16px;
+            }
+        }
+
+        /* Preview Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--surface);
+            margin: 2% auto;
+            padding: 0;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 16px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .modal-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 32px;
+            overflow-y: auto;
+            max-height: calc(90vh - 200px);
+        }
+
+        .preview-content h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .preview-content .subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+
+        .preview-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .preview-content .content {
+            font-size: 18px;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <a href="/admin.html" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Admin Panel</span>
+                </a>
+                <div class="title-status">
+                    <span class="status-badge status-draft">Draft</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="showPreview()">
+                    <i class="fas fa-eye"></i>
+                    <span>Preview</span>
+                </button>
+                <button class="btn btn-secondary" onclick="saveDraft()">
+                    <i class="fas fa-save"></i>
+                    <span>Save Draft</span>
+                </button>
+                <button class="btn btn-primary" onclick="publishArticle()">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Publish</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Editor Area -->
+        <div class="editor-area">
+            <!-- Title Section -->
+            <div class="title-section">
+                <textarea id="title" class="title-input" placeholder="Article title..." spellcheck="false"></textarea>
+                <textarea id="subtitle" class="subtitle-input" placeholder="Add a subtitle..." spellcheck="false"></textarea>
+            </div>
+
+            <!-- Enhanced Toolbar -->
+            <div class="editor-toolbar">
+                <!-- History -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="undo" title="Undo (Ctrl+Z)">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="redo" title="Redo (Ctrl+Y)">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Formatting -->
+                <div class="toolbar-group">
+                    <select class="toolbar-select" data-format="header" title="Text Style">
+                        <option value="">Normal Text</option>
+                        <option value="1">Heading 1</option>
+                        <option value="2">Heading 2</option>
+                        <option value="3">Heading 3</option>
+                        <option value="4">Heading 4</option>
+                        <option value="5">Heading 5</option>
+                        <option value="6">Heading 6</option>
+                    </select>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Basic Format -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-format="bold" title="Bold (Ctrl+B)">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="italic" title="Italic (Ctrl+I)">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="underline" title="Underline (Ctrl+U)">
+                        <i class="fas fa-underline"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="strike" title="Strikethrough">
+                        <i class="fas fa-strikethrough"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Colors -->
+                <div class="toolbar-group">
+                    <div class="color-group">
+                        <button class="toolbar-btn color-btn" data-format="color" title="Text Color">
+                            <i class="fas fa-font"></i>
+                            <span class="color-indicator" style="background: #000000;"></span>
+                        </button>
+                        <input type="color" class="color-input" data-format="color" value="#000000">
+                    </div>
+                    <div class="color-group">
+                        <button class="toolbar-btn color-btn" data-format="background" title="Highlight">
+                            <i class="fas fa-highlighter"></i>
+                            <span class="color-indicator" style="background: #ffff00;"></span>
+                        </button>
+                        <input type="color" class="color-input" data-format="background" value="#ffff00">
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Alignment -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-format="align" data-value="" title="Align Left">
+                        <i class="fas fa-align-left"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="align" data-value="center" title="Center">
+                        <i class="fas fa-align-center"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="align" data-value="right" title="Align Right">
+                        <i class="fas fa-align-right"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="align" data-value="justify" title="Justify">
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Lists -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-format="list" data-value="bullet" title="Bullet List">
+                        <i class="fas fa-list-ul"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="list" data-value="ordered" title="Numbered List">
+                        <i class="fas fa-list-ol"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="list" data-value="check" title="Checklist">
+                        <i class="fas fa-tasks"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Indent -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-format="indent" data-value="-1" title="Decrease Indent">
+                        <i class="fas fa-outdent"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="indent" data-value="+1" title="Increase Indent">
+                        <i class="fas fa-indent"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Special -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-format="blockquote" title="Quote">
+                        <i class="fas fa-quote-right"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="code-block" title="Code Block">
+                        <i class="fas fa-code"></i>
+                    </button>
+                    <button class="toolbar-btn" data-format="code" title="Inline Code">
+                        <i class="fas fa-terminal"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Insert -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="link" title="Insert Link">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="image" title="Insert Image">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="video" title="Insert Video">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="table" title="Insert Table">
+                        <i class="fas fa-table"></i>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Tools -->
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="hr" title="Horizontal Line">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="clear" title="Clear Formatting">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button class="toolbar-btn" data-action="fullscreen" title="Focus Mode">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="editor-content">
+                <div id="editor"></div>
+            </div>
+
+            <!-- Word Count -->
+            <div class="word-count">
+                <div>
+                    <span id="wordCount">0</span> words • 
+                    <span id="charCount">0</span> characters • 
+                    <span id="readTime">0</span> min read
+                </div>
+                <div>
+                    <span id="lastSaved">Never saved</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Settings -->
+            <div class="sidebar-card">
+                <h3><i class="fas fa-cog"></i> Publication Settings</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select id="category" class="form-control">
+                        <option value="">Select category</option>
+                        <option value="theology">Theology</option>
+                        <option value="devotional">Devotional</option>
+                        <option value="biblical-studies">Biblical Studies</option>
+                        <option value="christian-living">Christian Living</option>
+                        <option value="church-history">Church History</option>
+                        <option value="apologetics">Apologetics</option>
+                        <option value="ministry">Ministry</option>
+                        <option value="discipleship">Discipleship</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="status" class="form-control">
+                        <option value="draft">Draft</option>
+                        <option value="published">Published</option>
+                        <option value="pending">Pending Review</option>
+                        <option value="scheduled">Scheduled</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Publish Date</label>
+                    <input type="datetime-local" id="publishDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <div class="toggle-group">
+                        <label class="form-label">Allow Comments</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="allowComments" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="toggle-group">
+                        <label class="form-label">Featured Article</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="featured">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured Image -->
+            <div class="sidebar-card">
+                <h3><i class="fas fa-image"></i> Featured Image</h3>
+                
+                <div class="image-upload-zone" onclick="document.getElementById('imageInput').click()">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text">Upload featured image</div>
+                    <div class="upload-hint">PNG, JPG, GIF up to 5MB</div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <div id="imagePreview" class="image-preview" style="display: none;">
+                    <img id="previewImg" alt="Featured image">
+                    <button class="image-remove" onclick="removeImage()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SEO -->
+            <div class="sidebar-card">
+                <h3><i class="fas fa-search"></i> SEO & Meta</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Meta Title</label>
+                    <input type="text" id="metaTitle" class="form-control" maxlength="60" placeholder="SEO title (60 chars max)">
+                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                        <span id="metaTitleCount">0</span>/60 characters
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Meta Description</label>
+                    <textarea id="metaDescription" class="form-control" rows="3" maxlength="160" placeholder="SEO description..."></textarea>
+                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                        <span id="metaDescCount">0</span>/160 characters
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tags</label>
+                    <div class="tags-input" onclick="document.getElementById('tagInput').focus()">
+                        <div id="tagsContainer"></div>
+                        <input type="text" id="tagInput" class="tag-input" placeholder="Add tags..." onkeydown="handleTagInput(event)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="sidebar-card">
+                <h3><i class="fas fa-chart-bar"></i> Article Statistics</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number" id="sidebarWordCount">0</span>
+                        <span class="stat-label">Words</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="sidebarCharCount">0</span>
+                        <span class="stat-label">Characters</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="sidebarReadTime">0</span>
+                        <span class="stat-label">Min Read</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Article Preview</h3>
+                <button class="modal-close" onclick="closePreview()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-content">
+                    <h1 id="previewTitle">Article Title</h1>
+                    <div id="previewSubtitle" class="subtitle"></div>
+                    <div class="preview-meta">
+                        <span id="previewCategory">Category</span>
+                        <span>•</span>
+                        <span id="previewDate">Today</span>
+                        <span>•</span>
+                        <span id="previewReadTime">5 min read</span>
+                    </div>
+                    <div id="previewImage" style="display: none; margin-bottom: 32px;">
+                        <img id="previewFeaturedImg" style="width: 100%; border-radius: 12px;" alt="Featured image">
+                    </div>
+                    <div id="previewContent" class="content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
+    <script>
+        // Initialize Quill Editor with optimized configuration
+        let quill = new Quill('#editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: false, // Custom toolbar
+                history: {
+                    delay: 1000, // Reduced delay for better performance
+                    maxStack: 100, // Reduced stack size
+                    userOnly: true
+                },
+                syntax: typeof hljs !== 'undefined' ? {
+                    highlight: (text) => {
+                        // Async highlighting to prevent blocking
+                        return new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve(hljs.highlightAuto(text).value);
+                            }, 0);
+                        });
+                    }
+                } : false,
+                clipboard: {
+                    matchVisual: false,
+                    // Optimize paste performance
+                    matchers: [
+                        // Remove unwanted styling on paste
+                        ['STYLE', () => null],
+                        ['SCRIPT', () => null]
+                    ]
+                }
+            },
+            placeholder: 'Start writing your article...',
+            formats: [
+                'header', 'bold', 'italic', 'underline', 'strike',
+                'blockquote', 'code', 'code-block', 'list', 'indent',
+                'direction', 'align', 'color', 'background', 'font', 'size',
+                'link', 'image', 'video'
+            ]
+        });
+
+        // Variables
+        let tags = [];
+        let autoSaveInterval;
+        let hasUnsavedChanges = false;
+        
+        // Edit mode detection
+        const urlParams = new URLSearchParams(window.location.search);
+        let editContentId = urlParams.get('edit');
+        let isEditMode = !!editContentId;
+        let currentArticleData = null;
+
+        // Auto-resize textareas
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        // Setup auto-resize for title and subtitle with debouncing
+        let titleUpdateTimeout;
+        let subtitleUpdateTimeout;
+        
+        document.getElementById('title').addEventListener('input', function() {
+            autoResize(this);
+            hasUnsavedChanges = true;
+            
+            // Debounce heavy operations
+            clearTimeout(titleUpdateTimeout);
+            titleUpdateTimeout = setTimeout(() => {
+                updateMetaFields();
+                updateSaveStatus();
+            }, 100);
+        }, { passive: true });
+
+        document.getElementById('subtitle').addEventListener('input', function() {
+            autoResize(this);
+            hasUnsavedChanges = true;
+            
+            // Debounce save status update
+            clearTimeout(subtitleUpdateTimeout);
+            subtitleUpdateTimeout = setTimeout(() => {
+                updateSaveStatus();
+            }, 100);
+        }, { passive: true });
+
+        // Update save status indicator
+        function updateSaveStatus() {
+            const canAutoSave = shouldAutoSave();
+            const lastSavedElement = document.getElementById('lastSaved');
+            
+            if (canAutoSave) {
+                lastSavedElement.style.color = '#666';
+            } else {
+                lastSavedElement.textContent = 'Auto-save: Need min 3 chars title, 10 chars content';
+                lastSavedElement.style.color = '#999';
+            }
+        }
+
+        // Custom toolbar functionality with optimized event handling
+        document.querySelectorAll('.toolbar-btn, .toolbar-select').forEach(element => {
+            element.addEventListener('click', function(e) {
+                if (this.tagName === 'SELECT') return;
+                
+                e.preventDefault();
+                const format = this.dataset.format;
+                const value = this.dataset.value;
+                const action = this.dataset.action;
+
+                // Store current selection before applying formatting
+                const selection = quill.getSelection();
+
+                if (action) {
+                    handleToolbarAction(action);
+                } else if (format) {
+                    if (value !== undefined) {
+                        quill.format(format, value === '' ? false : value);
+                    } else {
+                        const currentFormat = quill.getFormat();
+                        quill.format(format, !currentFormat[format]);
+                    }
+                    
+                    // Restore focus to editor after formatting
+                    if (selection) {
+                        setTimeout(() => {
+                            quill.setSelection(selection);
+                            quill.focus();
+                        }, 10);
+                    }
+                    
+                    updateToolbarState();
+                }
+            });
+
+            if (element.tagName === 'SELECT') {
+                element.addEventListener('change', function() {
+                    const format = this.dataset.format;
+                    const value = this.value;
+                    quill.format(format, value === '' ? false : value);
+                    updateToolbarState();
+                }, { passive: true });
+            }
+        });
+
+        // Color inputs with passive listeners
+        document.querySelectorAll('.color-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const format = this.dataset.format;
+                const value = this.value;
+                quill.format(format, value);
+                this.previousElementSibling.querySelector('.color-indicator').style.background = value;
+            }, { passive: true });
+        });
+
+        // Toggle switches functionality
+        function initializeToggleSwitches() {
+            const toggles = document.querySelectorAll('.toggle input[type="checkbox"]');
+            
+            toggles.forEach(toggle => {
+                // Set initial state
+                updateToggleVisualState(toggle);
+                
+                // Add change event listener
+                toggle.addEventListener('change', function() {
+                    updateToggleVisualState(this);
+                    hasUnsavedChanges = true;
+                    updateSaveStatus();
+                }, { passive: true });
+            });
+        }
+
+        function updateToggleVisualState(toggleInput) {
+            const toggleContainer = toggleInput.closest('.toggle');
+            if (toggleContainer) {
+                if (toggleInput.checked) {
+                    toggleContainer.style.background = 'var(--primary)';
+                    toggleContainer.classList.add('checked');
+                } else {
+                    toggleContainer.style.background = 'var(--border)';
+                    toggleContainer.classList.remove('checked');
+                }
+            }
+        }
+
+        // Toggle switches are initialized in the main initializeApp function
+
+        function handleToolbarAction(action) {
+            const range = quill.getSelection();
+            
+            switch(action) {
+                case 'undo':
+                    quill.history.undo();
+                    break;
+                case 'redo':
+                    quill.history.redo();
+                    break;
+                case 'link':
+                    const url = prompt('Enter URL:');
+                    if (url) {
+                        if (range && range.length > 0) {
+                            quill.format('link', url);
+                        } else {
+                            const text = prompt('Enter link text:') || url;
+                            quill.insertText(range ? range.index : 0, text, 'link', url);
+                        }
+                    }
+                    break;
+                case 'image':
+                    const imageUrl = prompt('Enter image URL:');
+                    if (imageUrl) {
+                        quill.insertEmbed(range ? range.index : 0, 'image', imageUrl);
+                    }
+                    break;
+                case 'video':
+                    const videoUrl = prompt('Enter video URL (YouTube, Vimeo):');
+                    if (videoUrl) {
+                        quill.insertEmbed(range ? range.index : 0, 'video', videoUrl);
+                    }
+                    break;
+                case 'table':
+                    // Simple table insertion
+                    const tableHtml = '<table><tr><td>Cell 1</td><td>Cell 2</td></tr><tr><td>Cell 3</td><td>Cell 4</td></tr></table>';
+                    const delta = quill.clipboard.convert(tableHtml);
+                    quill.updateContents(delta, 'user');
+                    break;
+                case 'hr':
+                    quill.insertText(range ? range.index : 0, '\n---\n', 'user');
+                    break;
+                case 'clear':
+                    if (range && range.length > 0) {
+                        quill.removeFormat(range.index, range.length);
+                    }
+                    break;
+                case 'fullscreen':
+                    toggleFullscreen();
+                    break;
+            }
+        }
+
+        // Cache toolbar elements for better performance
+        let toolbarElements = null;
+        
+        function updateToolbarState() {
+            // Cache elements on first run
+            if (!toolbarElements) {
+                toolbarElements = {
+                    buttons: document.querySelectorAll('.toolbar-btn'),
+                    selects: document.querySelectorAll('.toolbar-select')
+                };
+            }
+            
+            const format = quill.getFormat();
+            
+            // Batch DOM updates for buttons
+            toolbarElements.buttons.forEach(btn => {
+                const formatName = btn.dataset.format;
+                const value = btn.dataset.value;
+                
+                if (formatName) {
+                    const isActive = value !== undefined 
+                        ? format[formatName] === value
+                        : !!format[formatName];
+                    
+                    // Only update if state changed to avoid unnecessary DOM manipulation
+                    if (btn.classList.contains('active') !== isActive) {
+                        btn.classList.toggle('active', isActive);
+                    }
+                }
+            });
+
+            // Batch DOM updates for selects
+            toolbarElements.selects.forEach(select => {
+                const formatName = select.dataset.format;
+                const newValue = (formatName && format[formatName]) ? format[formatName] : '';
+                
+                // Only update if value changed
+                if (select.value !== newValue) {
+                    select.value = newValue;
+                }
+            });
+        }
+
+        // Update stats with optimized DOM queries and caching
+        let statsElements = null;
+        function updateStats() {
+            // Cache DOM elements on first run
+            if (!statsElements) {
+                statsElements = {
+                    wordCount: document.getElementById('wordCount'),
+                    charCount: document.getElementById('charCount'),
+                    readTime: document.getElementById('readTime'),
+                    sidebarWordCount: document.getElementById('sidebarWordCount'),
+                    sidebarCharCount: document.getElementById('sidebarCharCount'),
+                    sidebarReadTime: document.getElementById('sidebarReadTime')
+                };
+            }
+            
+            const text = quill.getText();
+            const trimmedText = text.trim();
+            
+            // Optimize word counting for better performance
+            const words = trimmedText ? trimmedText.split(/\s+/).length : 0;
+            const chars = text.length;
+            const readTime = Math.max(1, Math.ceil(words / 200));
+
+            // Batch DOM updates
+            statsElements.wordCount.textContent = words;
+            statsElements.charCount.textContent = chars;
+            statsElements.readTime.textContent = readTime;
+            
+            statsElements.sidebarWordCount.textContent = words;
+            statsElements.sidebarCharCount.textContent = chars;
+            statsElements.sidebarReadTime.textContent = readTime;
+        }
+
+        // Text change events with optimized debouncing
+        let textChangeTimeout;
+        let statsUpdateTimeout;
+        
+        quill.on('text-change', function(delta, oldDelta, source) {
+            hasUnsavedChanges = true;
+            
+            // Immediate toolbar update for better responsiveness
+            if (source === 'user') {
+                updateToolbarState();
+            }
+            
+            // Debounce heavy operations
+            clearTimeout(textChangeTimeout);
+            clearTimeout(statsUpdateTimeout);
+            
+            // Quick save status update
+            textChangeTimeout = setTimeout(() => {
+                updateSaveStatus();
+            }, 150);
+            
+            // Heavier stats calculation with longer debounce
+            statsUpdateTimeout = setTimeout(() => {
+                updateStats();
+            }, 300);
+        });
+
+        quill.on('selection-change', function(range, oldRange, source) {
+            // Only update toolbar state for user interactions, not programmatic changes
+            if (source === 'user' && range) {
+                // Reduced debounce time for better responsiveness
+                clearTimeout(window.toolbarUpdateTimeout);
+                window.toolbarUpdateTimeout = setTimeout(() => {
+                    updateToolbarState();
+                }, 25);
+            }
+        });
+
+        // Tag management
+        function handleTagInput(event) {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                const tag = event.target.value.trim();
+                if (tag && !tags.includes(tag)) {
+                    tags.push(tag);
+                    renderTags();
+                    event.target.value = '';
+                }
+            } else if (event.key === 'Backspace' && event.target.value === '' && tags.length > 0) {
+                tags.pop();
+                renderTags();
+            }
+        }
+
+        function renderTags() {
+            const container = document.getElementById('tagsContainer');
+            container.innerHTML = tags.map(tag => `
+                <span class="tag">
+                    ${tag}
+                    <span class="tag-remove" onclick="removeTag('${tag}')">
+                        <i class="fas fa-times"></i>
+                    </span>
+                </span>
+            `).join('');
+        }
+
+        function removeTag(tag) {
+            tags = tags.filter(t => t !== tag);
+            renderTags();
+        }
+
+        // Image upload
+        document.getElementById('imageInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file && file.size <= 5 * 1024 * 1024) { // 5MB limit
+                try {
+                    // Show loading state
+                    const uploadZone = document.querySelector('.image-upload-zone');
+                    uploadZone.innerHTML = '<div class="upload-icon"><i class="fas fa-spinner fa-spin"></i></div><div class="upload-text">Uploading...</div>';
+                    
+                    // Create FormData for file upload
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    
+                    // Upload to backend
+                    const response = await fetch('/api/upload/image', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        // Show uploaded image
+                        document.getElementById('previewImg').src = result.data.url;
+                        document.getElementById('imagePreview').style.display = 'block';
+                        uploadZone.style.display = 'none';
+                        showNotification('Image uploaded successfully!', 'success');
+                    } else {
+                        throw new Error(result.message || 'Upload failed');
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    showNotification('Failed to upload image: ' + error.message, 'error');
+                    
+                    // Restore original upload zone
+                    const uploadZone = document.querySelector('.image-upload-zone');
+                    uploadZone.innerHTML = `
+                        <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                        <div class="upload-text">Upload featured image</div>
+                        <div class="upload-hint">PNG, JPG, GIF up to 5MB</div>
+                    `;
+                }
+            } else {
+                showNotification('Please select an image file under 5MB', 'error');
+            }
+        });
+
+        function removeImage() {
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('imageInput').value = '';
+            
+            // Show upload zone again
+            const uploadZone = document.querySelector('.image-upload-zone');
+            uploadZone.style.display = 'block';
+            uploadZone.innerHTML = `
+                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <div class="upload-text">Upload featured image</div>
+                <div class="upload-hint">PNG, JPG, GIF up to 5MB</div>
+            `;
+        }
+
+        // Character counters with passive listeners
+        document.getElementById('metaTitle').addEventListener('input', function() {
+            document.getElementById('metaTitleCount').textContent = this.value.length;
+        }, { passive: true });
+
+        document.getElementById('metaDescription').addEventListener('input', function() {
+            document.getElementById('metaDescCount').textContent = this.value.length;
+        }, { passive: true });
+
+        // Auto-populate meta fields
+        function updateMetaFields() {
+            const title = document.getElementById('title').value;
+            const metaTitle = document.getElementById('metaTitle');
+            
+            if (!metaTitle.value && title) {
+                metaTitle.value = title.substring(0, 60);
+                document.getElementById('metaTitleCount').textContent = metaTitle.value.length;
+            }
+        }
+
+        // Load article data for editing
+        async function loadArticleForEdit(contentId) {
+            try {
+                const response = await fetch(`/api/content/${contentId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showNotification('Please log in to edit articles', 'error');
+                        setTimeout(() => {
+                            window.location.href = '/admin.html';
+                        }, 2000);
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    currentArticleData = data.data.content;
+                    populateFormWithArticleData(currentArticleData);
+                    hasUnsavedChanges = false;
+                    
+                    // Update page title
+                    document.title = `Edit Article: ${currentArticleData.title} - FaithMasters`;
+                    
+                    showNotification('Article loaded for editing', 'success');
+                } else {
+                    throw new Error(data.message || 'Failed to load article');
+                }
+            } catch (error) {
+                console.error('Failed to load article:', error);
+                showNotification('Failed to load article: ' + error.message, 'error');
+                setTimeout(() => {
+                    window.location.href = '/admin.html';
+                }, 2000);
+            }
+        }
+
+        // Populate form with article data
+        function populateFormWithArticleData(article) {
+            try {
+                // Basic fields
+                const titleElement = document.getElementById('title');
+                const subtitleElement = document.getElementById('subtitle');
+                
+                if (titleElement) titleElement.value = article.title || '';
+                if (subtitleElement) subtitleElement.value = article.subtitle || '';
+                
+                // Quill editor content
+                if (article.body && quill) {
+                    quill.root.innerHTML = article.body;
+                }
+                
+                // Category
+                const categorySelect = document.getElementById('category');
+                if (categorySelect && article.category_id) {
+                    categorySelect.value = article.category_id;
+                }
+                
+                // Tags
+                if (article.tags) {
+                    try {
+                        tags = typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags;
+                        if (Array.isArray(tags)) {
+                            renderTags();
+                        }
+                    } catch (e) {
+                        console.error('Error parsing tags:', e);
+                        tags = [];
+                    }
+                }
+                
+                // Featured image
+                if (article.featured_image) {
+                    const previewImg = document.getElementById('previewImg');
+                    const imagePreview = document.getElementById('imagePreview');
+                    const uploadZone = document.querySelector('.image-upload-zone');
+                    
+                    if (previewImg && imagePreview && uploadZone) {
+                        previewImg.src = article.featured_image;
+                        imagePreview.style.display = 'block';
+                        uploadZone.style.display = 'none';
+                    }
+                }
+                
+                // SEO fields
+                const metaTitleElement = document.getElementById('metaTitle');
+                const metaDescElement = document.getElementById('metaDescription');
+                const metaTitleCountElement = document.getElementById('metaTitleCount');
+                const metaDescCountElement = document.getElementById('metaDescCount');
+                
+                if (metaTitleElement) {
+                    metaTitleElement.value = article.meta_title || '';
+                    if (metaTitleCountElement) {
+                        metaTitleCountElement.textContent = (article.meta_title || '').length;
+                    }
+                }
+                
+                if (metaDescElement) {
+                    metaDescElement.value = article.meta_description || '';
+                    if (metaDescCountElement) {
+                        metaDescCountElement.textContent = (article.meta_description || '').length;
+                    }
+                }
+                
+                // Featured checkbox
+                const featuredCheckbox = document.getElementById('featured');
+                if (featuredCheckbox) {
+                    featuredCheckbox.checked = !!article.is_featured;
+                    updateToggleVisualState(featuredCheckbox);
+                }
+
+                // Allow comments checkbox (if the article has this data)
+                const allowCommentsCheckbox = document.getElementById('allowComments');
+                if (allowCommentsCheckbox && article.allow_comments !== undefined) {
+                    allowCommentsCheckbox.checked = !!article.allow_comments;
+                    updateToggleVisualState(allowCommentsCheckbox);
+                }
+                
+                // Auto-resize textareas
+                if (titleElement) autoResize(titleElement);
+                if (subtitleElement) autoResize(subtitleElement);
+                
+                // Update stats
+                updateStats();
+                
+                // Update button text for edit mode
+                const publishBtn = document.querySelector('[onclick="publishArticle()"]');
+                const saveDraftBtn = document.querySelector('[onclick="saveDraft()"]');
+                
+                if (publishBtn) {
+                    publishBtn.innerHTML = '<i class="fas fa-globe"></i> <span>Update & Publish</span>';
+                }
+                if (saveDraftBtn) {
+                    saveDraftBtn.innerHTML = '<i class="fas fa-save"></i> <span>Update Draft</span>';
+                }
+                
+                // Update page title and status
+                document.title = `Edit Article: ${article.title} - FaithMasters`;
+                const statusBadge = document.querySelector('.status-badge');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Editing';
+                    statusBadge.className = 'status-badge status-editing';
+                }
+                
+                console.log('Article data loaded for editing:', article.title);
+            } catch (error) {
+                console.error('Error populating form with article data:', error);
+                showNotification('Error loading article data: ' + error.message, 'error');
+            }
+        }
+
+        // Set default publish date
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('publishDate').value = now.toISOString().slice(0, 16);
+
+        // API Configuration
+        const apiBase = '/api';
+        const authToken = localStorage.getItem('authToken');
+
+        // API Call Function
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const url = `${apiBase}${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (authToken) {
+                options.headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            if (data && (method === 'POST' || method === 'PUT')) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                
+                // Check if response is ok before trying to parse JSON
+                if (!response.ok) {
+                    let errorMessage = `API call failed with status ${response.status}`;
+                    
+                    try {
+                        const result = await response.json();
+                        errorMessage = result.message || errorMessage;
+                    } catch (jsonError) {
+                        // If JSON parsing fails, use the status text or default message
+                        errorMessage = response.statusText || errorMessage;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+
+                // Only parse JSON if response is ok
+                const result = await response.json();
+                return result;
+                
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        // Load Categories
+        async function loadCategories() {
+            try {
+                const response = await apiCall('/categories');
+                if (response.success) {
+                    const categorySelect = document.getElementById('category');
+                    categorySelect.innerHTML = '<option value="">Select category</option>';
+                    
+                    response.data.categories.forEach(category => {
+                        categorySelect.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                showNotification('Failed to load categories', 'error');
+            }
+        }
+
+        // Auto-save
+        function startAutoSave() {
+            autoSaveInterval = setInterval(() => {
+                if (hasUnsavedChanges && shouldAutoSave()) {
+                    saveDraft(true);
+                }
+            }, 30000); // Auto-save every 30 seconds
+        }
+
+        // Check if content meets minimum requirements for auto-save
+        function shouldAutoSave() {
+            const title = document.getElementById('title').value.trim();
+            const content = quill.getText().trim();
+            
+            // Only auto-save if title has at least 3 characters and content has at least 10 characters
+            return title.length >= 3 && content.length >= 10;
+        }
+
+        async function saveDraft(isAutoSave = false) {
+            try {
+                // Check minimum requirements for manual save
+                if (!isAutoSave && !shouldAutoSave()) {
+                    const title = document.getElementById('title').value.trim();
+                    const content = quill.getText().trim();
+                    
+                    if (title.length < 3) {
+                        showNotification('Title must be at least 3 characters to save draft', 'error');
+                        return;
+                    }
+                    if (content.length < 10) {
+                        showNotification('Content must be at least 10 characters to save draft', 'error');
+                        return;
+                    }
+                }
+                
+                const formData = collectFormData();
+                formData.status = 'draft';
+                
+                // Prepare data for API
+                const articleData = {
+                    title: formData.title,
+                    body: formData.content,
+                    type: 'article',
+                    excerpt: formData.subtitle || formData.excerpt || '',
+                    categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
+                    tags: formData.tags,
+                    metaTitle: formData.metaTitle,
+                    metaDescription: formData.metaDescription,
+                    featuredImage: formData.featuredImage,
+                    featured: formData.featured,
+                    status: 'draft'
+                };
+
+                console.log(isEditMode ? 'Updating draft:' : 'Saving draft:', articleData);
+                
+                // Use PUT for update, POST for create
+                const endpoint = isEditMode ? `/content/${editContentId}` : '/content';
+                const method = isEditMode ? 'PUT' : 'POST';
+                const response = await apiCall(endpoint, method, articleData);
+                
+                if (response.success) {
+                    hasUnsavedChanges = false;
+                    const now = new Date().toLocaleTimeString();
+                    document.getElementById('lastSaved').textContent = `Saved at ${now}`;
+                    
+                    if (!isAutoSave) {
+                        const action = isEditMode ? 'updated' : 'saved';
+                        showNotification(`Draft ${action} successfully!`, 'success');
+                    }
+                    
+                    // If this was a new article, switch to edit mode
+                    if (!isEditMode && response.data && response.data.content && response.data.content.id) {
+                        window.history.replaceState({}, '', `${window.location.pathname}?edit=${response.data.content.id}`);
+                        editContentId = response.data.content.id;
+                        isEditMode = true;
+                        currentArticleData = response.data.content;
+                    }
+                } else {
+                    throw new Error(response.message || 'Failed to save draft');
+                }
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                if (!isAutoSave) {
+                    const action = isEditMode ? 'update' : 'save';
+                    showNotification(`Failed to ${action} draft: ` + error.message, 'error');
+                }
+            }
+        }
+
+        async function publishArticle() {
+            try {
+                const formData = collectFormData();
+                
+                // Validation
+                if (!formData.title.trim()) {
+                    showNotification('Please enter a title', 'error');
+                    return;
+                }
+                
+                if (!formData.content.trim()) {
+                    showNotification('Please write some content', 'error');
+                    return;
+                }
+                
+                if (!formData.categoryId) {
+                    showNotification('Please select a category', 'error');
+                    return;
+                }
+                
+                // Prepare data for API
+                const articleData = {
+                    title: formData.title,
+                    body: formData.content,
+                    type: 'article',
+                    excerpt: formData.subtitle || '',
+                    categoryId: parseInt(formData.categoryId),
+                    tags: formData.tags,
+                    metaTitle: formData.metaTitle,
+                    metaDescription: formData.metaDescription,
+                    featuredImage: formData.featuredImage,
+                    featured: formData.featured,
+                    status: 'published'
+                };
+
+                console.log(isEditMode ? 'Updating and publishing article:' : 'Publishing article:', articleData);
+                
+                // Use PUT for update, POST for create
+                const endpoint = isEditMode ? `/content/${editContentId}` : '/content';
+                const method = isEditMode ? 'PUT' : 'POST';
+                const response = await apiCall(endpoint, method, articleData);
+                
+                if (response.success) {
+                    const action = isEditMode ? 'updated and published' : 'published';
+                    showNotification(`Article ${action} successfully!`, 'success');
+                    hasUnsavedChanges = false;
+                    
+                    // Redirect to admin panel after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = `/admin.html`;
+                    }, 2000);
+                } else {
+                    throw new Error(response.message || 'Failed to publish article');
+                }
+            } catch (error) {
+                console.error('Error publishing article:', error);
+                const action = isEditMode ? 'update and publish' : 'publish';
+                showNotification(`Failed to ${action} article: ` + error.message, 'error');
+            }
+        }
+
+        function showPreview() {
+            const title = document.getElementById('title').value || 'Untitled Article';
+            const subtitle = document.getElementById('subtitle').value;
+            const content = quill.root.innerHTML;
+            const category = document.getElementById('category').value || 'Uncategorized';
+            const image = document.getElementById('previewImg').src;
+            
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewSubtitle').textContent = subtitle;
+            document.getElementById('previewSubtitle').style.display = subtitle ? 'block' : 'none';
+            document.getElementById('previewContent').innerHTML = content;
+            document.getElementById('previewCategory').textContent = category;
+            document.getElementById('previewDate').textContent = new Date().toLocaleDateString();
+            document.getElementById('previewReadTime').textContent = document.getElementById('readTime').textContent + ' min read';
+            
+            if (image && !image.includes('data:')) {
+                document.getElementById('previewFeaturedImg').src = image;
+                document.getElementById('previewImage').style.display = 'block';
+            } else {
+                document.getElementById('previewImage').style.display = 'none';
+            }
+            
+            document.getElementById('previewModal').style.display = 'block';
+        }
+
+        function closePreview() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+
+        function collectFormData() {
+            const previewImg = document.getElementById('previewImg');
+            return {
+                title: document.getElementById('title').value,
+                subtitle: document.getElementById('subtitle').value,
+                content: quill.root.innerHTML,
+                categoryId: document.getElementById('category').value,
+                status: document.getElementById('status').value,
+                publishDate: document.getElementById('publishDate').value,
+                allowComments: document.getElementById('allowComments').checked,
+                featured: document.getElementById('featured').checked,
+                metaTitle: document.getElementById('metaTitle').value,
+                metaDescription: document.getElementById('metaDescription').value,
+                tags: tags,
+                featuredImage: (previewImg && previewImg.src && !previewImg.src.includes('data:')) ? previewImg.src : null
+            };
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 24px;
+                background: ${type === 'success' ? 'var(--success)' : 'var(--error)'};
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 500;
+                z-index: 1001;
+                box-shadow: var(--shadow-lg);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        function toggleFullscreen() {
+            const editorArea = document.querySelector('.editor-area');
+            const sidebar = document.querySelector('.sidebar');
+            const container = document.querySelector('.main-container');
+            
+            if (editorArea.classList.contains('fullscreen')) {
+                // Exit fullscreen
+                editorArea.classList.remove('fullscreen');
+                sidebar.style.display = 'flex';
+                container.style.gridTemplateColumns = '1fr 320px';
+                document.querySelector('[data-action="fullscreen"] i').className = 'fas fa-expand';
+            } else {
+                // Enter fullscreen
+                editorArea.classList.add('fullscreen');
+                sidebar.style.display = 'none';
+                container.style.gridTemplateColumns = '1fr';
+                document.querySelector('[data-action="fullscreen"] i').className = 'fas fa-compress';
+            }
+        }
+
+        // Close modal on outside click
+        document.getElementById('previewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePreview();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        saveDraft();
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        publishArticle();
+                        break;
+                }
+            }
+            
+            if (e.key === 'F11') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+        });
+
+        // Authentication Check
+        function checkAuthentication() {
+            if (!authToken) {
+                showNotification('Please log in to create articles', 'error');
+                setTimeout(() => {
+                    window.location.href = '/admin.html';
+                }, 2000);
+                return false;
+            }
+            return true;
+        }
+
+        // Initialize Application
+        async function initializeApp() {
+            try {
+                // Check authentication
+                if (!checkAuthentication()) {
+                    return;
+                }
+
+                // Load categories
+                await loadCategories();
+
+                // If in edit mode, load the article data
+                if (isEditMode && editContentId) {
+                    await loadArticleForEdit(editContentId);
+                } else {
+                    // Initialize stats for new article
+                    updateStats();
+                }
+                
+                // Start auto-save
+                startAutoSave();
+                
+                // Initialize save status
+                updateSaveStatus();
+                
+                // Initialize toggle switches
+                initializeToggleSwitches();
+                
+                console.log('Professional Article Creator initialized!', isEditMode ? `Edit mode for article ${editContentId}` : 'Create mode');
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                showNotification('Failed to initialize application', 'error');
+            }
+        }
+        
+        // Prevent accidental page leave
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
+    </script>
+</body>
+</html>

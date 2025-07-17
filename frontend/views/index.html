@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaithMasters - Interfaith Dialogue Platform</title>
+    <meta name="description" content="Join FaithMasters for meaningful interfaith discussions, articles, and community dialogue across different religious traditions.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="FaithMasters - Interfaith Dialogue Platform">
+    <meta property="og:description" content="Join meaningful interfaith discussions and build bridges across religious traditions.">
+    <meta property="og:url" content="https://faithmasters.org">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="FaithMasters - Interfaith Dialogue Platform">
+    <meta property="twitter:description" content="Join meaningful interfaith discussions and build bridges across religious traditions.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Loading FaithMasters...</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="mainNav" class="navbar" style="display: none;">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="/" class="brand-link">
+                    <i class="fas fa-dove"></i>
+                    <span>FaithMasters</span>
+                </a>
+            </div>
+
+            <div class="nav-menu" id="navMenu">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#" onclick="navigateTo('home')" class="nav-link active">
+                            <i class="fas fa-home"></i>
+                            <span>Home</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="navigateTo('discussions')" class="nav-link">
+                            <i class="fas fa-comments"></i>
+                            <span>Discussions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="navigateTo('articles')" class="nav-link">
+                            <i class="fas fa-newspaper"></i>
+                            <span>Articles</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" onclick="navigateTo('categories')" class="nav-link">
+                            <i class="fas fa-tags"></i>
+                            <span>Categories</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-actions">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search..." class="search-input">
+                    <button onclick="performSearch()" class="search-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+
+                <div id="authButtons" class="auth-buttons">
+                    <button onclick="showAuthModal('login')" class="btn btn-outline">Login</button>
+                    <button onclick="showAuthModal('register')" class="btn btn-primary">Sign Up</button>
+                </div>
+
+                <div id="userMenu" class="user-menu" style="display: none;">
+                    <div class="user-avatar" onclick="toggleUserDropdown()">
+                        <img id="userAvatar" src="/assets/images/default-avatar.png" alt="User Avatar">
+                        <span id="userName">User</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div id="userDropdown" class="user-dropdown">
+                        <a href="#" onclick="navigateTo('profile')" class="dropdown-item">
+                            <i class="fas fa-user"></i> Profile
+                        </a>
+                        <a href="#" onclick="navigateTo('dashboard')" class="dropdown-item">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                        <a href="#" onclick="navigateTo('settings')" class="dropdown-item">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/admin.html" class="dropdown-item admin-link" id="adminLink" style="display: none;">
+                            <i class="fas fa-shield-alt"></i> Admin Panel
+                        </a>
+                        <a href="#" onclick="logout()" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent" class="main-content" style="display: none;">
+        <!-- Home Section -->
+        <section id="home-section" class="content-section active">
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <div class="container">
+                    <div class="hero-content">
+                        <h1 class="hero-title">
+                            Building Bridges Through <span class="highlight">Interfaith Dialogue</span>
+                        </h1>
+                        <p class="hero-description">
+                            Join a respectful community where people of all faith traditions come together 
+                            to share wisdom, explore differences, and find common ground in meaningful conversations.
+                        </p>
+                        <div class="hero-actions">
+                            <button onclick="showAuthModal('register')" class="btn btn-primary btn-lg">
+                                Join the Conversation
+                            </button>
+                            <button onclick="navigateTo('discussions')" class="btn btn-outline btn-lg">
+                                Explore Discussions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="features-section">
+                <div class="container">
+                    <h2 class="section-title">Why Choose FaithMasters?</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <h3>Respectful Dialogue</h3>
+                            <p>Our community guidelines ensure all conversations remain respectful and constructive.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h3>Diverse Community</h3>
+                            <p>Connect with people from various faith traditions and spiritual backgrounds.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-book-open"></i>
+                            </div>
+                            <h3>Rich Content</h3>
+                            <p>Access thoughtful articles, discussions, and resources on interfaith topics.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3>Safe Space</h3>
+                            <p>Moderated environment ensuring a safe and welcoming space for all participants.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured Content -->
+            <div class="featured-section">
+                <div class="container">
+                    <h2 class="section-title">Featured Discussions</h2>
+                    <div id="featuredContent" class="content-grid">
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
+                            <p>Loading featured content...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Preview -->
+            <div class="categories-preview">
+                <div class="container">
+                    <h2 class="section-title">Explore Topics</h2>
+                    <div id="categoriesPreview" class="categories-grid">
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
+                            <p>Loading categories...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Discussions Section -->
+        <section id="discussions-section" class="content-section">
+            <div class="container">
+                <div class="section-header">
+                    <h1>Discussions</h1>
+                    <!-- Content creation buttons removed - should only be in admin panel -->
+                </div>
+
+                <div class="content-filters">
+                    <div class="filter-group">
+                        <select id="discussionCategoryFilter" class="filter-select">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="discussionSortFilter" class="filter-select">
+                            <option value="created_at">Latest</option>
+                            <option value="like_count">Most Liked</option>
+                            <option value="comment_count">Most Discussed</option>
+                            <option value="view_count">Most Viewed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="discussionsList" class="content-list">
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
+                        <p>Loading discussions...</p>
+                    </div>
+                </div>
+
+                <div id="discussionsPagination" class="pagination"></div>
+            </div>
+        </section>
+
+        <!-- Articles Section -->
+        <section id="articles-section" class="content-section">
+            <div class="container">
+                <div class="section-header">
+                    <h1>Articles</h1>
+                    <!-- Content creation buttons removed - should only be in admin panel -->
+                </div>
+
+                <div class="content-filters">
+                    <div class="filter-group">
+                        <select id="articleCategoryFilter" class="filter-select">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="articleSortFilter" class="filter-select">
+                            <option value="created_at">Latest</option>
+                            <option value="like_count">Most Liked</option>
+                            <option value="comment_count">Most Discussed</option>
+                            <option value="view_count">Most Viewed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="articlesList" class="content-list">
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
+                        <p>Loading articles...</p>
+                    </div>
+                </div>
+
+                <div id="articlesPagination" class="pagination"></div>
+            </div>
+        </section>
+
+        <!-- Categories Section -->
+        <section id="categories-section" class="content-section">
+            <div class="container">
+                <div class="section-header">
+                    <h1>Categories</h1>
+                </div>
+
+                <div id="categoriesList" class="categories-detailed">
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
+                        <p>Loading categories...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Content Detail Section -->
+        <section id="content-detail-section" class="content-section">
+            <div class="container">
+                <div id="contentDetail" class="content-detail">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile-section" class="content-section">
+            <div class="container">
+                <div id="profileContent" class="profile-content">
+                    <!-- Profile content will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section">
+            <div class="container">
+                <div id="dashboardContent" class="dashboard-content">
+                    <!-- Dashboard content will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="content-section">
+            <div class="container">
+                <div id="settingsContent" class="settings-content">
+                    <!-- Settings content will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Results Section -->
+        <section id="search-section" class="content-section">
+            <div class="container">
+                <div class="section-header">
+                    <h1>Search Results</h1>
+                    <p id="searchQuery" class="search-query"></p>
+                </div>
+
+                <div id="searchResults" class="search-results">
+                    <!-- Search results will be loaded here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="mainFooter" class="footer" style="display: none;">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>FaithMasters</h3>
+                    <p>Building bridges through interfaith dialogue and understanding.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="#" onclick="navigateTo('discussions')">Discussions</a></li>
+                        <li><a href="#" onclick="navigateTo('articles')">Articles</a></li>
+                        <li><a href="#" onclick="navigateTo('categories')">Categories</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Guidelines</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Code of Conduct</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 FaithMasters. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <!-- Authentication Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="authModalTitle">Login</h3>
+                <span class="close" onclick="closeModal('authModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Login Form -->
+                <form id="loginForm" class="auth-form active">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" name="email" class="form-control" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                                                    <input type="password" id="loginPassword" name="password" class="form-control" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
+                    </div>
+                    <div class="form-footer">
+                        <p>Don't have an account? <a href="#" onclick="showAuthModal('register')">Sign up here</a></p>
+                    </div>
+                </form>
+
+                <!-- Register Form -->
+                <form id="registerForm" class="auth-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="registerFirstName">First Name</label>
+                            <input type="text" id="registerFirstName" name="firstName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerLastName">Last Name</label>
+                            <input type="text" id="registerLastName" name="lastName" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" name="email" class="form-control" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                                                    <input type="password" id="registerPassword" name="password" class="form-control" autocomplete="new-password" required>
+                        <small class="form-help">Password must contain at least 8 characters, including uppercase, lowercase, number, and special character.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerConfirmPassword">Confirm Password</label>
+                                                    <input type="password" id="registerConfirmPassword" name="confirmPassword" class="form-control" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerFaithTradition">Faith Tradition (Optional)</label>
+                        <select id="registerFaithTradition" name="faithTradition" class="form-control">
+                            <option value="">Select your tradition</option>
+                            <option value="Christianity">Christianity</option>
+                            <option value="Islam">Islam</option>
+                            <option value="Judaism">Judaism</option>
+                            <option value="Buddhism">Buddhism</option>
+                            <option value="Hinduism">Hinduism</option>
+                            <option value="Sikhism">Sikhism</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                    </div>
+                    <div class="form-footer">
+                        <p>Already have an account? <a href="#" onclick="showAuthModal('login')">Login here</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="/assets/js/app.js?v=1.0.4"></script>
+</body>
+</html>
