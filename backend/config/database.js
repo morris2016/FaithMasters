@@ -1,13 +1,11 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
+const constants = require('./constants');
 
 /**
- * Production-ready SQLite3 Database Configuration
+ * Production-ready PostgreSQL Database Configuration
  * Features:
  * - Connection pooling
- * - WAL mode for better performance
- * - Automatic backup
+ * - Automatic reconnection
  * - Error handling
  * - Query logging
  * - Serverless environment support
@@ -15,13 +13,12 @@ const fs = require('fs');
 
 class DatabaseManager {
     constructor() {
-        this.dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'faithmasters.sqlite');
-        this.db = null;
+        this.pool = null;
         this.isInitialized = false;
         this.isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
         
         // Connection pool settings
-        this.maxConnections = 10;
+        this.maxConnections = parseInt(process.env.DB_MAX_CONNECTIONS) || 10;
         this.connectionTimeout = parseInt(process.env.DB_CONNECTION_TIMEOUT) || 30000;
         this.retryAttempts = 3;
         this.retryDelay = 1000;
@@ -32,53 +29,40 @@ class DatabaseManager {
      */
     async initialize() {
         if (this.isInitialized) {
-            return this.db;
+            return this.pool;
         }
 
         // Check if we're in a serverless environment
         if (this.isServerless) {
-            console.log('⚠️  Serverless environment detected - database operations may be limited');
-            // In serverless, we'll try to initialize but won't fail if we can't
+            console.log('⚠️  Serverless environment detected - using connection pooling');
         }
 
         try {
-            // Ensure directory exists
-            const dbDir = path.dirname(this.dbPath);
-            if (!fs.existsSync(dbDir)) {
-                try {
-                    fs.mkdirSync(dbDir, { recursive: true });
-                } catch (mkdirError) {
-                    console.warn('Could not create database directory:', mkdirError.message);
-                    if (this.isServerless) {
-                        console.log('Using in-memory database for serverless environment');
-                        this.dbPath = ':memory:';
-                    } else {
-                        throw mkdirError;
-                    }
-                }
+            // Get database connection string from environment
+            const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+            
+            if (!connectionString) {
+                throw new Error('DATABASE_URL or POSTGRES_URL environment variable is required');
             }
 
-            // Create database connection
-            this.db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-                if (err) {
-                    console.error('Error opening database:', err.message);
-                    if (this.isServerless) {
-                        console.log('Database initialization failed in serverless environment - continuing without database');
-                        this.isInitialized = true; // Mark as initialized to prevent retries
-                        return;
-                    }
-                    throw err;
-                }
-                console.log('✅ Connected to SQLite database:', this.dbPath);
+            // Create connection pool
+            this.pool = new Pool({
+                connectionString,
+                max: this.maxConnections,
+                idleTimeoutMillis: this.connectionTimeout,
+                connectionTimeoutMillis: this.connectionTimeout,
+                ssl: this.isServerless ? { rejectUnauthorized: false } : false
             });
 
-            // Configure database for production
-            if (this.db) {
-                await this.configureDatabase();
-            }
+            // Test the connection
+            const client = await this.pool.connect();
+            await client.query('SELECT NOW()');
+            client.release();
+
+            console.log('✅ Connected to PostgreSQL database');
             
             this.isInitialized = true;
-            return this.db;
+            return this.pool;
 
         } catch (error) {
             console.error('Failed to initialize database:', error);
@@ -92,28 +76,6 @@ class DatabaseManager {
     }
 
     /**
-     * Configure database settings for production
-     */
-    async configureDatabase() {
-        if (!this.db) return;
-        
-        return new Promise((resolve, reject) => {
-            // Skip WAL mode for WSL compatibility
-            console.log('✅ Database configuration completed (WAL mode disabled for WSL compatibility)');
-
-            // Enable foreign key constraints
-            this.db.run('PRAGMA foreign_keys = ON;', (err) => {
-                if (err) {
-                    console.error('Failed to enable foreign keys:', err);
-                    return reject(err);
-                }
-                console.log('✅ Foreign key constraints enabled');
-                resolve();
-            });
-        });
-    }
-
-    /**
      * Execute a query with retry logic
      */
     async query(sql, params = []) {
@@ -121,33 +83,34 @@ class DatabaseManager {
             await this.initialize();
         }
 
-        if (!this.db) {
+        if (!this.pool) {
             throw new Error('Database not available');
         }
 
-        return new Promise((resolve, reject) => {
-            const executeQuery = (attempt = 1) => {
-                this.db.all(sql, params, (err, rows) => {
-                    if (err) {
-                        console.error(`Query error (attempt ${attempt}):`, err.message);
-                        console.error('SQL:', sql);
-                        console.error('Params:', params);
+        const executeQuery = async (attempt = 1) => {
+            try {
+                const client = await this.pool.connect();
+                try {
+                    const result = await client.query(sql, params);
+                    return result.rows;
+                } finally {
+                    client.release();
+                }
+            } catch (err) {
+                console.error(`Query error (attempt ${attempt}):`, err.message);
+                console.error('SQL:', sql);
+                console.error('Params:', params);
 
-                        if (attempt < this.retryAttempts) {
-                            setTimeout(() => {
-                                executeQuery(attempt + 1);
-                            }, this.retryDelay * attempt);
-                        } else {
-                            reject(err);
-                        }
-                    } else {
-                        resolve(rows);
-                    }
-                });
-            };
+                if (attempt < this.retryAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                    return executeQuery(attempt + 1);
+                } else {
+                    throw err;
+                }
+            }
+        };
 
-            executeQuery();
-        });
+        return executeQuery();
     }
 
     /**
@@ -158,22 +121,24 @@ class DatabaseManager {
             await this.initialize();
         }
 
-        if (!this.db) {
+        if (!this.pool) {
             throw new Error('Database not available');
         }
 
-        return new Promise((resolve, reject) => {
-            this.db.get(sql, params, (err, row) => {
-                if (err) {
-                    console.error('Get query error:', err.message);
-                    console.error('SQL:', sql);
-                    console.error('Params:', params);
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
-            });
-        });
+        try {
+            const client = await this.pool.connect();
+            try {
+                const result = await client.query(sql, params);
+                return result.rows[0] || null;
+            } finally {
+                client.release();
+            }
+        } catch (err) {
+            console.error('Get query error:', err.message);
+            console.error('SQL:', sql);
+            console.error('Params:', params);
+            throw err;
+        }
     }
 
     /**
@@ -184,25 +149,27 @@ class DatabaseManager {
             await this.initialize();
         }
 
-        if (!this.db) {
+        if (!this.pool) {
             throw new Error('Database not available');
         }
 
-        return new Promise((resolve, reject) => {
-            this.db.run(sql, params, function(err) {
-                if (err) {
-                    console.error('Run query error:', err.message);
-                    console.error('SQL:', sql);
-                    console.error('Params:', params);
-                    reject(err);
-                } else {
-                    resolve({
-                        lastID: this.lastID,
-                        changes: this.changes
-                    });
-                }
-            });
-        });
+        try {
+            const client = await this.pool.connect();
+            try {
+                const result = await client.query(sql, params);
+                return {
+                    lastID: result.rows[0]?.id || null,
+                    changes: result.rowCount
+                };
+            } finally {
+                client.release();
+            }
+        } catch (err) {
+            console.error('Run query error:', err.message);
+            console.error('SQL:', sql);
+            console.error('Params:', params);
+            throw err;
+        }
     }
 
     /**
@@ -213,99 +180,54 @@ class DatabaseManager {
             await this.initialize();
         }
 
-        if (!this.db) {
+        if (!this.pool) {
             throw new Error('Database not available');
         }
 
-        return new Promise((resolve, reject) => {
-            this.db.serialize(() => {
-                this.db.run('BEGIN TRANSACTION', (err) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    const executeQueries = async () => {
-                        try {
-                            const results = [];
-                            for (const { sql, params } of queries) {
-                                const result = await this.run(sql, params);
-                                results.push(result);
-                            }
-
-                            this.db.run('COMMIT', (err) => {
-                                if (err) {
-                                    return reject(err);
-                                }
-                                resolve(results);
-                            });
-                        } catch (error) {
-                            this.db.run('ROLLBACK', (rollbackErr) => {
-                                if (rollbackErr) {
-                                    console.error('Rollback error:', rollbackErr);
-                                }
-                                reject(error);
-                            });
-                        }
-                    };
-
-                    executeQueries();
-                });
-            });
-        });
-    }
-
-    /**
-     * Create a backup of the database
-     */
-    async backup(backupPath) {
-        if (!backupPath) {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            backupPath = `${this.dbPath}.backup.${timestamp}`;
-        }
-
-        if (!this.db) {
-            throw new Error('Database not available for backup');
-        }
-
-        return new Promise((resolve, reject) => {
-            const backup = this.db.backup(backupPath);
+        const client = await this.pool.connect();
+        try {
+            await client.query('BEGIN');
             
-            backup.step(-1, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    backup.finish((finalErr) => {
-                        if (finalErr) {
-                            reject(finalErr);
-                        } else {
-                            console.log('✅ Database backup created:', backupPath);
-                            resolve(backupPath);
-                        }
-                    });
-                }
-            });
-        });
+            const results = [];
+            for (const { sql, params } of queries) {
+                const result = await client.query(sql, params);
+                results.push({
+                    lastID: result.rows[0]?.id || null,
+                    changes: result.rowCount
+                });
+            }
+
+            await client.query('COMMIT');
+            return results;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     /**
      * Get database statistics
      */
     async getStats() {
-        if (!this.db) {
+        if (!this.pool) {
             return null;
         }
+        
         try {
-            const tableCount = await this.get("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'");
-            const pageCount = await this.get("PRAGMA page_count");
-            const pageSize = await this.get("PRAGMA page_size");
-            const dbSize = pageCount.page_count * pageSize.page_size;
+            const tableCount = await this.get("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'");
+            const connectionCount = this.pool.totalCount;
+            const idleCount = this.pool.idleCount;
+            const waitingCount = this.pool.waitingCount;
 
             return {
-                tables: tableCount.count,
-                size: dbSize,
-                sizeFormatted: this.formatBytes(dbSize),
-                pageCount: pageCount.page_count,
-                pageSize: pageSize.page_size
+                tableCount: tableCount?.count || 0,
+                connections: {
+                    total: connectionCount,
+                    idle: idleCount,
+                    waiting: waitingCount
+                }
             };
         } catch (error) {
             console.error('Error getting database stats:', error);
@@ -314,63 +236,43 @@ class DatabaseManager {
     }
 
     /**
-     * Format bytes to human readable string
+     * Health check
      */
-    formatBytes(bytes) {
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        if (bytes === 0) return '0 Bytes';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    async healthCheck() {
+        if (!this.pool) {
+            return { status: 'unhealthy', message: 'Database not initialized' };
+        }
+        try {
+            await this.get("SELECT 1 as health");
+            return { status: 'healthy', message: 'Database connection OK' };
+        } catch (error) {
+            return { status: 'unhealthy', message: error.message };
+        }
     }
 
     /**
      * Close database connection
      */
     async close() {
-        if (this.db) {
-            return new Promise((resolve) => {
-                this.db.close((err) => {
-                    if (err) {
-                        console.error('Error closing database:', err.message);
-                    } else {
-                        console.log('✅ Database connection closed');
-                    }
-                    this.isInitialized = false;
-                    resolve();
-                });
-            });
-        }
-    }
-
-    /**
-     * Health check
-     */
-    async healthCheck() {
-        if (!this.db) {
-            return { status: 'unhealthy', message: 'Database not initialized' };
-        }
-        try {
-            await this.get("SELECT 1 as health");
-            return { status: 'healthy', timestamp: new Date().toISOString() };
-        } catch (error) {
-            return { status: 'unhealthy', error: error.message, timestamp: new Date().toISOString() };
+        if (this.pool) {
+            await this.pool.end();
+            this.pool = null;
+            this.isInitialized = false;
+            console.log('Database connection closed');
         }
     }
 }
 
-// Create singleton instance
-const dbManager = new DatabaseManager();
+// Create and export database manager instance
+const databaseManager = new DatabaseManager();
 
-// Export convenience functions
+// Initialize function for compatibility
+const initialize = async () => {
+    return await databaseManager.initialize();
+};
+
 module.exports = {
-    db: dbManager,
-    query: (sql, params) => dbManager.query(sql, params),
-    get: (sql, params) => dbManager.get(sql, params),
-    run: (sql, params) => dbManager.run(sql, params),
-    transaction: (queries) => dbManager.transaction(queries),
-    initialize: () => dbManager.initialize(),
-    close: () => dbManager.close(),
-    backup: (path) => dbManager.backup(path),
-    getStats: () => dbManager.getStats(),
-    healthCheck: () => dbManager.healthCheck()
+    initialize,
+    DatabaseManager,
+    databaseManager
 };
