@@ -10,6 +10,7 @@ const fs = require('fs');
  * - Automatic backup
  * - Error handling
  * - Query logging
+ * - Serverless environment support
  */
 
 class DatabaseManager {
@@ -17,6 +18,7 @@ class DatabaseManager {
         this.dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'faithmasters.sqlite');
         this.db = null;
         this.isInitialized = false;
+        this.isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
         
         // Connection pool settings
         this.maxConnections = 10;
@@ -33,30 +35,58 @@ class DatabaseManager {
             return this.db;
         }
 
+        // Check if we're in a serverless environment
+        if (this.isServerless) {
+            console.log('⚠️  Serverless environment detected - database operations may be limited');
+            // In serverless, we'll try to initialize but won't fail if we can't
+        }
+
         try {
             // Ensure directory exists
             const dbDir = path.dirname(this.dbPath);
             if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true });
+                try {
+                    fs.mkdirSync(dbDir, { recursive: true });
+                } catch (mkdirError) {
+                    console.warn('Could not create database directory:', mkdirError.message);
+                    if (this.isServerless) {
+                        console.log('Using in-memory database for serverless environment');
+                        this.dbPath = ':memory:';
+                    } else {
+                        throw mkdirError;
+                    }
+                }
             }
 
             // Create database connection
             this.db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
                 if (err) {
                     console.error('Error opening database:', err.message);
+                    if (this.isServerless) {
+                        console.log('Database initialization failed in serverless environment - continuing without database');
+                        this.isInitialized = true; // Mark as initialized to prevent retries
+                        return;
+                    }
                     throw err;
                 }
                 console.log('✅ Connected to SQLite database:', this.dbPath);
             });
 
             // Configure database for production
-            await this.configureDatabase();
+            if (this.db) {
+                await this.configureDatabase();
+            }
             
             this.isInitialized = true;
             return this.db;
 
         } catch (error) {
             console.error('Failed to initialize database:', error);
+            if (this.isServerless) {
+                console.log('Continuing without database in serverless environment');
+                this.isInitialized = true; // Mark as initialized to prevent retries
+                return null;
+            }
             throw error;
         }
     }
@@ -65,6 +95,8 @@ class DatabaseManager {
      * Configure database settings for production
      */
     async configureDatabase() {
+        if (!this.db) return;
+        
         return new Promise((resolve, reject) => {
             // Skip WAL mode for WSL compatibility
             console.log('✅ Database configuration completed (WAL mode disabled for WSL compatibility)');
@@ -87,6 +119,10 @@ class DatabaseManager {
     async query(sql, params = []) {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        if (!this.db) {
+            throw new Error('Database not available');
         }
 
         return new Promise((resolve, reject) => {
@@ -122,6 +158,10 @@ class DatabaseManager {
             await this.initialize();
         }
 
+        if (!this.db) {
+            throw new Error('Database not available');
+        }
+
         return new Promise((resolve, reject) => {
             this.db.get(sql, params, (err, row) => {
                 if (err) {
@@ -142,6 +182,10 @@ class DatabaseManager {
     async run(sql, params = []) {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        if (!this.db) {
+            throw new Error('Database not available');
         }
 
         return new Promise((resolve, reject) => {
@@ -167,6 +211,10 @@ class DatabaseManager {
     async transaction(queries) {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        if (!this.db) {
+            throw new Error('Database not available');
         }
 
         return new Promise((resolve, reject) => {
@@ -215,6 +263,10 @@ class DatabaseManager {
             backupPath = `${this.dbPath}.backup.${timestamp}`;
         }
 
+        if (!this.db) {
+            throw new Error('Database not available for backup');
+        }
+
         return new Promise((resolve, reject) => {
             const backup = this.db.backup(backupPath);
             
@@ -239,6 +291,9 @@ class DatabaseManager {
      * Get database statistics
      */
     async getStats() {
+        if (!this.db) {
+            return null;
+        }
         try {
             const tableCount = await this.get("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'");
             const pageCount = await this.get("PRAGMA page_count");
@@ -291,6 +346,9 @@ class DatabaseManager {
      * Health check
      */
     async healthCheck() {
+        if (!this.db) {
+            return { status: 'unhealthy', message: 'Database not initialized' };
+        }
         try {
             await this.get("SELECT 1 as health");
             return { status: 'healthy', timestamp: new Date().toISOString() };
