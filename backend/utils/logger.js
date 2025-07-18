@@ -12,12 +12,23 @@ const constants = require('../config/constants');
  * - Different log levels for different environments
  * - Request logging
  * - Error tracking
+ * - Serverless environment support
  */
 
-// Ensure logs directory exists
-const logsDir = path.dirname(constants.LOGGING.FILE_PATH);
-if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
+// Check if we're in a serverless environment
+const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+
+// Ensure logs directory exists (skip in serverless)
+let logsDir = null;
+if (!isServerless) {
+    logsDir = path.dirname(constants.LOGGING.FILE_PATH);
+    if (!fs.existsSync(logsDir)) {
+        try {
+            fs.mkdirSync(logsDir, { recursive: true });
+        } catch (error) {
+            console.warn('Could not create logs directory:', error.message);
+        }
+    }
 }
 
 // Custom log format
@@ -58,7 +69,7 @@ const consoleFormat = winston.format.combine(
 // Create transports
 const transports = [];
 
-// Console transport
+// Console transport (always available)
 if (constants.SERVER.NODE_ENV !== 'test') {
     transports.push(
         new winston.transports.Console({
@@ -70,33 +81,36 @@ if (constants.SERVER.NODE_ENV !== 'test') {
     );
 }
 
-// File transport for all logs
-transports.push(
-    new winston.transports.File({
-        filename: constants.LOGGING.FILE_PATH,
-        level: constants.LOGGING.LEVEL,
-        format: logFormat,
-        maxsize: constants.LOGGING.MAX_SIZE,
-        maxFiles: constants.LOGGING.MAX_FILES,
-        tailable: true,
-        handleExceptions: true,
-        handleRejections: true
-    })
-);
+// File transports (only in non-serverless environments)
+if (!isServerless && logsDir) {
+    // File transport for all logs
+    transports.push(
+        new winston.transports.File({
+            filename: constants.LOGGING.FILE_PATH,
+            level: constants.LOGGING.LEVEL,
+            format: logFormat,
+            maxsize: constants.LOGGING.MAX_SIZE,
+            maxFiles: constants.LOGGING.MAX_FILES,
+            tailable: true,
+            handleExceptions: true,
+            handleRejections: true
+        })
+    );
 
-// Error file transport
-transports.push(
-    new winston.transports.File({
-        filename: path.join(logsDir, 'error.log'),
-        level: 'error',
-        format: logFormat,
-        maxsize: constants.LOGGING.MAX_SIZE,
-        maxFiles: constants.LOGGING.MAX_FILES,
-        tailable: true,
-        handleExceptions: true,
-        handleRejections: true
-    })
-);
+    // Error file transport
+    transports.push(
+        new winston.transports.File({
+            filename: path.join(logsDir, 'error.log'),
+            level: 'error',
+            format: logFormat,
+            maxsize: constants.LOGGING.MAX_SIZE,
+            maxFiles: constants.LOGGING.MAX_FILES,
+            tailable: true,
+            handleExceptions: true,
+            handleRejections: true
+        })
+    );
+}
 
 // Create logger instance
 const logger = winston.createLogger({
@@ -105,6 +119,14 @@ const logger = winston.createLogger({
     transports,
     exitOnError: false
 });
+
+// Add a fallback if no transports are configured
+if (transports.length === 0) {
+    logger.add(new winston.transports.Console({
+        level: 'info',
+        format: winston.format.simple()
+    }));
+}
 
 /**
  * Enhanced logging methods with context

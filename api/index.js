@@ -9,10 +9,6 @@ const path = require('path');
 const constants = require('../backend/config/constants');
 const { initialize: initializeDatabase } = require('../backend/config/database');
 
-// Import middleware
-const { requestLogger, errorLogger, logger } = require('../backend/utils/logger');
-const { errorHandler, notFoundHandler } = require('../backend/middleware/errorHandler');
-
 // Import routes
 const authRoutes = require('../backend/routes/auth');
 const contentRoutes = require('../backend/routes/content');
@@ -173,7 +169,10 @@ app.get('*', (req, res) => {
 });
 
 // Error handling
-app.use(notFoundHandler);
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+});
+
 app.use((err, req, res, next) => {
     console.error('Error:', err);
     res.status(500).json({ error: 'Internal server error' });
