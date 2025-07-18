@@ -91,6 +91,26 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Database setup endpoint
+app.post('/api/setup-db', async (req, res) => {
+    try {
+        const { setupDatabase } = require('./setup-db');
+        await setupDatabase();
+        res.json({ 
+            success: true, 
+            message: 'Database setup completed successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Database setup failed:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // API routes with database check
 app.use('/api/auth', (req, res, next) => {
     if (!dbInitialized) {
