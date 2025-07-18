@@ -271,8 +271,30 @@ const initialize = async () => {
     return await databaseManager.initialize();
 };
 
+// Compatibility exports for existing models
+const query = async (sql, params = []) => {
+    return await databaseManager.query(sql, params);
+};
+
+const get = async (sql, params = []) => {
+    return await databaseManager.get(sql, params);
+};
+
+const run = async (sql, params = []) => {
+    return await databaseManager.run(sql, params);
+};
+
+const transaction = async (queries) => {
+    return await databaseManager.transaction(queries);
+};
+
 module.exports = {
     initialize,
     DatabaseManager,
-    databaseManager
+    databaseManager,
+    // Compatibility exports for existing models
+    query,
+    get,
+    run,
+    transaction
 };
