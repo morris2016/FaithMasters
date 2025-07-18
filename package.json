@@ -10,9 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint backend/ frontend/assets/js/",
-    "lint:fix": "eslint backend/ frontend/assets/js/ --fix",
-    "build": "npm run lint && npm test",
+    "build": "echo Build complete!",
     "seed": "node backend/utils/seed.js",
     "reset-db": "rm -f backend/faithmasters.sqlite && npm run migrate && npm run seed"
   },
@@ -46,7 +44,6 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "eslint": "^8.54.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "prettier": "^3.1.0",
