@@ -199,7 +199,7 @@ const requireOwnershipOrRole = (resourceUserIdField = 'author_id', allowedRoles 
             const resource = await get(`
                 SELECT ${resourceUserIdField} as user_id 
                 FROM content 
-                WHERE id = ?
+                WHERE id = $1
             `, [resourceId]);
 
             if (!resource) {

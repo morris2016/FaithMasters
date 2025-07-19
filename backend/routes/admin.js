@@ -828,7 +828,7 @@ router.post('/categories', asyncHandler(async (req, res) => {
     }
 
     // Check if category name already exists
-    const existingCategory = await query('SELECT id FROM categories WHERE name = ?', [name]);
+    const existingCategory = await query('SELECT id FROM categories WHERE name = $1', [name]);
     if (existingCategory.length > 0) {
         return res.status(constants.HTTP_STATUS.CONFLICT).json({
             success: false,
@@ -839,7 +839,8 @@ router.post('/categories', asyncHandler(async (req, res) => {
 
     const result = await run(`
         INSERT INTO categories (name, description, color, icon, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+        VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
     `, [name, description || null, color || '#4A90E2', icon || 'fas fa-folder']);
 
     logger.info('Category created by admin', {
@@ -864,7 +865,7 @@ router.delete('/categories/:id', asyncHandler(async (req, res) => {
     const categoryId = req.params.id;
 
     // Check if category exists
-    const category = await get('SELECT * FROM categories WHERE id = ?', [categoryId]);
+    const category = await get('SELECT * FROM categories WHERE id = $1', [categoryId]);
     if (!category) {
         return res.status(constants.HTTP_STATUS.NOT_FOUND).json({
             success: false,
@@ -877,7 +878,7 @@ router.delete('/categories/:id', asyncHandler(async (req, res) => {
     const contentCount = await get(`
         SELECT COUNT(*) as count 
         FROM content 
-        WHERE category_id = ?
+        WHERE category_id = $1
     `, [categoryId]);
 
     if (contentCount.count > 0) {
@@ -888,7 +889,7 @@ router.delete('/categories/:id', asyncHandler(async (req, res) => {
         });
     }
 
-    const result = await run('DELETE FROM categories WHERE id = ?', [categoryId]);
+    const result = await run('DELETE FROM categories WHERE id = $1', [categoryId]);
     
     if (result.changes === 0) {
         return res.status(constants.HTTP_STATUS.INTERNAL_SERVER_ERROR).json({

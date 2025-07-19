@@ -86,7 +86,7 @@ class MigrationRunner {
             
             // Record the migration as executed
             await run(
-                `INSERT INTO ${this.migrationTable} (version, name) VALUES (?, ?)`,
+                `INSERT INTO ${this.migrationTable} (version, name) VALUES ($1, $2)`,
                 [version, migration.description || migrationFile]
             );
             
@@ -114,7 +114,7 @@ class MigrationRunner {
             
             // Remove the migration record
             await run(
-                `DELETE FROM ${this.migrationTable} WHERE version = ?`,
+                `DELETE FROM ${this.migrationTable} WHERE version = $1`,
                 [version]
             );
             

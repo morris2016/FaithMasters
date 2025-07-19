@@ -126,7 +126,7 @@ class AuthManager {
 
             await run(`
                 INSERT INTO user_sessions (id, user_id, refresh_token, expires_at, ip_address, user_agent)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES ($1, $2, $3, $4, $5, $6)
             `, [sessionId, userId, refreshToken, expiresAt.toISOString(), ipAddress, userAgent]);
 
             return sessionId;
