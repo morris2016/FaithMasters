@@ -270,7 +270,7 @@ router.put('/users/:id', requireAdmin, validateAdminUserUpdate, asyncHandler(asy
 
     // Validate email uniqueness if email is being changed
     if (email && email !== user.email) {
-        const existingUser = await query('SELECT id FROM users WHERE email = ? AND id != ?', [email, req.params.id]);
+        const existingUser = await query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.params.id]);
         if (existingUser.length > 0) {
             return res.status(constants.HTTP_STATUS.CONFLICT).json({
                 success: false,

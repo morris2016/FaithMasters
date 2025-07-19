@@ -144,7 +144,7 @@ class AuthManager {
                 SELECT s.*, u.id as user_id, u.email, u.role, u.status
                 FROM user_sessions s
                 JOIN users u ON s.user_id = u.id
-                WHERE s.refresh_token = ? AND s.is_active = 1 AND datetime(s.expires_at) > datetime('now')
+                WHERE s.refresh_token = $1 AND s.is_active = true AND s.expires_at > CURRENT_TIMESTAMP
             `, [refreshToken]);
         } catch (error) {
             throw new Error('Failed to get session');
@@ -158,8 +158,8 @@ class AuthManager {
         try {
             await run(`
                 UPDATE user_sessions 
-                SET is_active = 0 
-                WHERE id = ?
+                SET is_active = false 
+                WHERE id = $1
             `, [sessionId]);
         } catch (error) {
             throw new Error('Failed to invalidate session');
@@ -173,8 +173,8 @@ class AuthManager {
         try {
             await run(`
                 UPDATE user_sessions 
-                SET is_active = 0 
-                WHERE user_id = ?
+                SET is_active = false 
+                WHERE user_id = $1
             `, [userId]);
         } catch (error) {
             throw new Error('Failed to invalidate user sessions');
@@ -188,7 +188,7 @@ class AuthManager {
         try {
             const result = await run(`
                 DELETE FROM user_sessions 
-                WHERE datetime(expires_at) <= datetime('now') OR is_active = 0
+                WHERE expires_at <= CURRENT_TIMESTAMP OR is_active = false
             `);
             
             if (result.changes > 0) {
@@ -210,7 +210,7 @@ class AuthManager {
             return await query(`
                 SELECT id, ip_address, user_agent, created_at, expires_at
                 FROM user_sessions
-                WHERE user_id = ? AND is_active = 1 AND datetime(expires_at) > datetime('now')
+                WHERE user_id = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP
                 ORDER BY created_at DESC
             `, [userId]);
         } catch (error) {
@@ -279,8 +279,8 @@ class AuthManager {
             // Update session activity
             await run(`
                 UPDATE user_sessions 
-                SET ip_address = ?, user_agent = ? 
-                WHERE id = ?
+                SET ip_address = $1, user_agent = $2 
+                WHERE id = $3
             `, [ipAddress, userAgent, session.id]);
 
             return {

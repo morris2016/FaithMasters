@@ -31,7 +31,7 @@ const verifyToken = async (req, res, next) => {
         const user = await get(`
             SELECT id, email, first_name, last_name, display_name, role, status, last_login_at
             FROM users 
-            WHERE id = ? AND status = 'active'
+            WHERE id = $1 AND status = 'active'
         `, [decoded.userId]);
 
         if (!user) {
@@ -104,7 +104,7 @@ const optionalAuth = async (req, res, next) => {
         const user = await get(`
             SELECT id, email, first_name, last_name, display_name, role, status
             FROM users 
-            WHERE id = ? AND status = 'active'
+            WHERE id = $1 AND status = 'active'
         `, [decoded.userId]);
 
         req.user = user || null;
