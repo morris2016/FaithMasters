@@ -1,5 +1,5 @@
 const { query, get, run } = require('../config/database');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Category Model
@@ -29,11 +29,11 @@ class CategoryModel {
             let counter = 1;
 
             while (true) {
-                let checkQuery = 'SELECT id FROM categories WHERE slug = ?';
+                let checkQuery = 'SELECT id FROM categories WHERE slug = $1';
                 let params = [uniqueSlug];
 
                 if (excludeId) {
-                    checkQuery += ' AND id != ?';
+                    checkQuery += ' AND id != $2';
                     params.push(excludeId);
                 }
 
@@ -72,8 +72,10 @@ class CategoryModel {
 
             const result = await run(`
                 INSERT INTO categories (
-                    name, slug, description, color, icon, parent_id, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    name, slug, description, color, icon, parent_id, sort_order,
+                    created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
             `, [name, slug, description, color, icon, parentId, sortOrder]);
 
             logger.info('Category created', { 
@@ -100,7 +102,7 @@ class CategoryModel {
                     parent.name as parent_name
                 FROM categories c
                 LEFT JOIN categories parent ON c.parent_id = parent.id
-                WHERE c.id = ?
+                WHERE c.id = $1
             `, [id]);
 
             return category;
@@ -121,7 +123,7 @@ class CategoryModel {
                     parent.name as parent_name
                 FROM categories c
                 LEFT JOIN categories parent ON c.parent_id = parent.id
-                WHERE c.slug = ?
+                WHERE c.slug = $1
             `, [slug]);
 
             return category;
@@ -138,7 +140,7 @@ class CategoryModel {
         try {
             let whereClause = '';
             if (!includeInactive) {
-                whereClause = 'WHERE c.is_active = 1';
+                whereClause = 'WHERE c.is_active = true';
             }
 
             const categories = await query(`
@@ -150,7 +152,7 @@ class CategoryModel {
                 LEFT JOIN categories parent ON c.parent_id = parent.id
                 LEFT JOIN content ON c.id = content.category_id AND content.status = 'published'
                 ${whereClause}
-                GROUP BY c.id
+                GROUP BY c.id, parent.name
                 ORDER BY c.sort_order ASC, c.name ASC
             `);
 
@@ -172,7 +174,7 @@ class CategoryModel {
                     COUNT(content.id) as content_count
                 FROM categories c
                 LEFT JOIN content ON c.id = content.category_id AND content.status = 'published'
-                WHERE c.parent_id IS NULL AND c.is_active = 1
+                WHERE c.parent_id IS NULL AND c.is_active = true
                 GROUP BY c.id
                 ORDER BY c.sort_order ASC, c.name ASC
             `);
@@ -195,7 +197,7 @@ class CategoryModel {
                     COUNT(content.id) as content_count
                 FROM categories c
                 LEFT JOIN content ON c.id = content.category_id AND content.status = 'published'
-                WHERE c.parent_id = ? AND c.is_active = 1
+                WHERE c.parent_id = $1 AND c.is_active = true
                 GROUP BY c.id
                 ORDER BY c.sort_order ASC, c.name ASC
             `, [parentId]);
@@ -208,7 +210,7 @@ class CategoryModel {
     }
 
     /**
-     * Build category hierarchy
+     * Build hierarchical structure from flat list
      */
     static buildHierarchy(categories) {
         const categoryMap = new Map();
@@ -216,10 +218,13 @@ class CategoryModel {
 
         // Create a map of all categories
         categories.forEach(category => {
-            categoryMap.set(category.id, { ...category, children: [] });
+            categoryMap.set(category.id, {
+                ...category,
+                children: []
+            });
         });
 
-        // Build the hierarchy
+        // Build hierarchy
         categories.forEach(category => {
             if (category.parent_id) {
                 const parent = categoryMap.get(category.parent_id);
@@ -249,7 +254,7 @@ class CategoryModel {
                 isActive
             } = updateData;
 
-            // If name is being updated, generate new slug
+            // Generate new slug if name changed
             let slug = null;
             if (name) {
                 const baseSlug = this.generateSlug(name);
@@ -259,16 +264,16 @@ class CategoryModel {
             const result = await run(`
                 UPDATE categories 
                 SET 
-                    name = COALESCE(?, name),
-                    slug = COALESCE(?, slug),
-                    description = COALESCE(?, description),
-                    color = COALESCE(?, color),
-                    icon = COALESCE(?, icon),
-                    parent_id = COALESCE(?, parent_id),
-                    sort_order = COALESCE(?, sort_order),
-                    is_active = COALESCE(?, is_active),
-                    updated_at = datetime('now')
-                WHERE id = ?
+                    name = COALESCE($1, name),
+                    slug = COALESCE($2, slug),
+                    description = COALESCE($3, description),
+                    color = COALESCE($4, color),
+                    icon = COALESCE($5, icon),
+                    parent_id = COALESCE($6, parent_id),
+                    sort_order = COALESCE($7, sort_order),
+                    is_active = COALESCE($8, is_active),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $9
             `, [name, slug, description, color, icon, parentId, sortOrder, isActive, id]);
 
             if (result.changes === 0) {
@@ -289,39 +294,37 @@ class CategoryModel {
      */
     static async delete(id) {
         try {
-            // Check if category has subcategories
-            const subcategories = await query(`
-                SELECT id FROM categories WHERE parent_id = ?
-            `, [id]);
-
-            if (subcategories.length > 0) {
-                return {
-                    success: false,
-                    message: 'Cannot delete category with subcategories'
-                };
-            }
-
             // Check if category has content
-            const content = await get(`
-                SELECT COUNT(*) as count FROM content WHERE category_id = ?
+            const contentCount = await get(`
+                SELECT COUNT(*) as count 
+                FROM content 
+                WHERE category_id = $1
             `, [id]);
 
-            if (content.count > 0) {
-                return {
-                    success: false,
-                    message: 'Cannot delete category with content'
-                };
+            if (contentCount.count > 0) {
+                throw new Error('Cannot delete category with existing content');
             }
 
-            const result = await run('DELETE FROM categories WHERE id = ?', [id]);
+            // Check if category has subcategories
+            const subcategoryCount = await get(`
+                SELECT COUNT(*) as count 
+                FROM categories 
+                WHERE parent_id = $1
+            `, [id]);
+
+            if (subcategoryCount.count > 0) {
+                throw new Error('Cannot delete category with subcategories');
+            }
+
+            const result = await run('DELETE FROM categories WHERE id = $1', [id]);
 
             if (result.changes === 0) {
-                return { success: false, message: 'Category not found' };
+                return false;
             }
 
             logger.info('Category deleted', { categoryId: id });
 
-            return { success: true, message: 'Category deleted successfully' };
+            return true;
         } catch (error) {
             logger.error('Error deleting category', error, { categoryId: id });
             throw error;
@@ -336,15 +339,16 @@ class CategoryModel {
             const stats = await get(`
                 SELECT 
                     COUNT(*) as total_categories,
-                    COUNT(CASE WHEN parent_id IS NULL THEN 1 END) as top_level,
+                    COUNT(CASE WHEN parent_id IS NULL THEN 1 END) as top_level_categories,
                     COUNT(CASE WHEN parent_id IS NOT NULL THEN 1 END) as subcategories,
-                    COUNT(CASE WHEN is_active = 1 THEN 1 END) as active
+                    COUNT(CASE WHEN is_active = true THEN 1 END) as active_categories,
+                    AVG(sort_order) as avg_sort_order
                 FROM categories
             `);
 
             return stats;
         } catch (error) {
-            logger.error('Error getting category statistics', error);
+            logger.error('Error getting category stats', error);
             throw error;
         }
     }
@@ -361,11 +365,10 @@ class CategoryModel {
                     SUM(content.view_count) as total_views
                 FROM categories c
                 LEFT JOIN content ON c.id = content.category_id AND content.status = 'published'
-                WHERE c.is_active = 1
+                WHERE c.is_active = true
                 GROUP BY c.id
-                HAVING content_count > 0
                 ORDER BY content_count DESC, total_views DESC
-                LIMIT ?
+                LIMIT $1
             `, [limit]);
 
             return categories;
@@ -388,16 +391,18 @@ class CategoryModel {
                 FROM categories c
                 LEFT JOIN categories parent ON c.parent_id = parent.id
                 LEFT JOIN content ON c.id = content.category_id AND content.status = 'published'
-                WHERE c.is_active = 1 
-                AND (c.name LIKE ? OR c.description LIKE ?)
-                GROUP BY c.id
-                ORDER BY c.name ASC
-                LIMIT ?
-            `, [`%${searchTerm}%`, `%${searchTerm}%`, limit]);
+                WHERE c.is_active = true AND (
+                    LOWER(c.name) LIKE LOWER($1) OR 
+                    LOWER(c.description) LIKE LOWER($1)
+                )
+                GROUP BY c.id, parent.name
+                ORDER BY c.sort_order ASC, c.name ASC
+                LIMIT $2
+            `, [`%${searchTerm}%`, limit]);
 
             return categories;
         } catch (error) {
-            logger.error('Error searching categories', error, { searchTerm });
+            logger.error('Error searching categories', error);
             throw error;
         }
     }
@@ -407,16 +412,14 @@ class CategoryModel {
      */
     static async reorder(categoryOrders) {
         try {
-            // categoryOrders is an array of { id, sortOrder }
-            for (const { id, sortOrder } of categoryOrders) {
-                await run(`
-                    UPDATE categories 
-                    SET sort_order = ?, updated_at = datetime('now') 
-                    WHERE id = ?
-                `, [sortOrder, id]);
-            }
+            const queries = categoryOrders.map(({ id, sortOrder }) => ({
+                sql: 'UPDATE categories SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                params: [sortOrder, id]
+            }));
 
-            logger.info('Categories reordered', { count: categoryOrders.length });
+            await run.transaction(queries);
+
+            logger.info('Categories reordered', { categoryOrders });
 
             return true;
         } catch (error) {
@@ -426,7 +429,7 @@ class CategoryModel {
     }
 
     /**
-     * Get category breadcrumb
+     * Get breadcrumb for category
      */
     static async getBreadcrumb(categoryId) {
         try {
@@ -437,10 +440,12 @@ class CategoryModel {
                 const category = await get(`
                     SELECT id, name, slug, parent_id 
                     FROM categories 
-                    WHERE id = ?
+                    WHERE id = $1
                 `, [currentId]);
 
-                if (!category) break;
+                if (!category) {
+                    break;
+                }
 
                 breadcrumb.unshift({
                     id: category.id,
@@ -463,16 +468,16 @@ class CategoryModel {
      */
     static async nameExists(name, excludeId = null) {
         try {
-            let query = 'SELECT id FROM categories WHERE name = ?';
+            let query = 'SELECT id FROM categories WHERE LOWER(name) = LOWER($1)';
             let params = [name];
 
             if (excludeId) {
-                query += ' AND id != ?';
+                query += ' AND id != $2';
                 params.push(excludeId);
             }
 
-            const category = await get(query, params);
-            return !!category;
+            const existing = await get(query, params);
+            return !!existing;
         } catch (error) {
             logger.error('Error checking category name existence', error, { name });
             throw error;
@@ -480,21 +485,20 @@ class CategoryModel {
     }
 
     /**
-     * Get category content summary
+     * Get content summary for category
      */
     static async getContentSummary(categoryId) {
         try {
             const summary = await get(`
                 SELECT 
                     COUNT(*) as total_content,
-                    COUNT(CASE WHEN type = 'article' THEN 1 END) as articles,
-                    COUNT(CASE WHEN type = 'discussion' THEN 1 END) as discussions,
+                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published_content,
+                    COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_content,
                     SUM(view_count) as total_views,
-                    SUM(like_count) as total_likes,
-                    SUM(comment_count) as total_comments,
-                    MAX(published_at) as latest_content
+                    AVG(view_count) as avg_views,
+                    MAX(created_at) as latest_content
                 FROM content
-                WHERE category_id = ? AND status = 'published'
+                WHERE category_id = $1
             `, [categoryId]);
 
             return summary;

@@ -1,6 +1,6 @@
 const { query, get, run } = require('../config/database');
 const constants = require('../config/constants');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Content Model
@@ -30,11 +30,11 @@ class ContentModel {
             let counter = 1;
 
             while (true) {
-                let checkQuery = 'SELECT id FROM content WHERE slug = ?';
+                let checkQuery = 'SELECT id FROM content WHERE slug = $1';
                 let params = [uniqueSlug];
 
                 if (excludeId) {
-                    checkQuery += ' AND id != ?';
+                    checkQuery += ' AND id != $2';
                     params.push(excludeId);
                 }
 
@@ -84,8 +84,10 @@ class ContentModel {
                 INSERT INTO content (
                     title, slug, body, type, excerpt, author_id, 
                     category_id, tags, meta_title, meta_description,
-                    featured_image, is_featured, status, published_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    featured_image, is_featured, status, published_at,
+                    created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
             `, [
                 title,
                 slug,
@@ -98,7 +100,7 @@ class ContentModel {
                 metaTitle || title,
                 metaDescription || excerpt,
                 featuredImage,
-                featured ? 1 : 0,
+                featured,
                 status,
                 status === constants.CONTENT_STATUS.PUBLISHED ? new Date().toISOString() : null
             ]);
@@ -133,7 +135,7 @@ class ContentModel {
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
-                WHERE c.id = ?
+                WHERE c.id = $1
             `, [id]);
 
             if (content && content.tags) {
@@ -167,7 +169,7 @@ class ContentModel {
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
-                WHERE c.slug = ?
+                WHERE c.slug = $1
             `, [slug]);
 
             if (content && content.tags) {
@@ -199,75 +201,96 @@ class ContentModel {
                 category = '',
                 author = '',
                 status = constants.CONTENT_STATUS.PUBLISHED,
-                search = '',
-                featured = false
+                featured = null,
+                search = ''
             } = options;
 
             const offset = (page - 1) * limit;
             
-            let whereClause = 'WHERE 1=1';
-            const params = [];
-
-            if (status) {
-                whereClause += ' AND c.status = ?';
-                params.push(status);
-            }
+            // Build WHERE clause
+            const whereConditions = ['c.status = $1'];
+            const params = [status];
+            let paramIndex = 2;
 
             if (type) {
-                whereClause += ' AND c.type = ?';
+                whereConditions.push(`c.type = $${paramIndex}`);
                 params.push(type);
+                paramIndex++;
             }
 
             if (category) {
-                whereClause += ' AND c.category_id = ?';
+                whereConditions.push(`cat.slug = $${paramIndex}`);
                 params.push(category);
+                paramIndex++;
             }
 
             if (author) {
-                whereClause += ' AND c.author_id = ?';
+                whereConditions.push(`u.id = $${paramIndex}`);
                 params.push(author);
+                paramIndex++;
+            }
+
+            if (featured !== null) {
+                whereConditions.push(`c.is_featured = $${paramIndex}`);
+                params.push(featured);
+                paramIndex++;
             }
 
             if (search) {
-                whereClause += ' AND (c.title LIKE ? OR c.body LIKE ? OR c.excerpt LIKE ?)';
-                const searchParam = `%${search}%`;
-                params.push(searchParam, searchParam, searchParam);
+                whereConditions.push(`(
+                    LOWER(c.title) LIKE LOWER($${paramIndex}) OR 
+                    LOWER(c.body) LIKE LOWER($${paramIndex}) OR 
+                    LOWER(c.excerpt) LIKE LOWER($${paramIndex})
+                )`);
+                params.push(`%${search}%`);
+                paramIndex++;
             }
 
-            if (featured) {
-                whereClause += ' AND c.is_featured = 1';
-            }
+            const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
             // Get total count
-            const countQuery = `
-                SELECT COUNT(*) as total 
+            const countResult = await get(`
+                SELECT COUNT(*) as total
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
                 ${whereClause}
-            `;
-            const { total } = await get(countQuery, params);
+            `, params);
+
+            const total = parseInt(countResult.total);
 
             // Get content
-            const contentQuery = `
+            const content = await query(`
                 SELECT 
-                    c.id, c.title, c.slug, c.excerpt, c.type, c.status,
-                    c.featured_image, c.view_count, c.like_count, c.comment_count,
-                    c.is_featured, c.is_sticky, c.published_at, c.created_at,
+                    c.*,
                     u.display_name as author_name,
                     u.profile_image as author_image,
                     cat.name as category_name,
                     cat.slug as category_slug,
-                    cat.color as category_color
+                    cat.color as category_color,
+                    COUNT(l.id) as like_count,
+                    COUNT(cm.id) as comment_count
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
+                LEFT JOIN likes l ON c.id = l.content_id
+                LEFT JOIN comments cm ON c.id = cm.content_id
                 ${whereClause}
-                ORDER BY c.is_sticky DESC, c.${sort} ${order}
-                LIMIT ? OFFSET ?
-            `;
+                GROUP BY c.id, u.display_name, u.profile_image, cat.name, cat.slug, cat.color
+                ORDER BY c.${sort} ${order.toUpperCase()}
+                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+            `, [...params, limit, offset]);
 
-            const content = await query(contentQuery, [...params, limit, offset]);
+            // Parse tags for each content item
+            content.forEach(item => {
+                if (item.tags) {
+                    try {
+                        item.tags = JSON.parse(item.tags);
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                }
+            });
 
             return {
                 content,
@@ -279,7 +302,7 @@ class ContentModel {
                 }
             };
         } catch (error) {
-            logger.error('Error getting content list', error);
+            logger.error('Error getting content', error);
             throw error;
         }
     }
@@ -301,41 +324,37 @@ class ContentModel {
                 status
             } = updateData;
 
-            // If title is being updated, generate new slug
+            // Generate new slug if title changed
             let slug = null;
             if (title) {
                 const baseSlug = this.generateSlug(title);
                 slug = await this.ensureUniqueSlug(baseSlug, id);
             }
 
-            // Convert tags array to JSON string
+            // Convert tags array to JSON string if provided
             const tagsJson = tags ? JSON.stringify(tags) : null;
 
             const result = await run(`
                 UPDATE content 
                 SET 
-                    title = COALESCE(?, title),
-                    slug = COALESCE(?, slug),
-                    body = COALESCE(?, body),
-                    excerpt = COALESCE(?, excerpt),
-                    category_id = COALESCE(?, category_id),
-                    tags = COALESCE(?, tags),
-                    meta_title = COALESCE(?, meta_title),
-                    meta_description = COALESCE(?, meta_description),
-                    featured_image = COALESCE(?, featured_image),
-                    status = COALESCE(?, status),
+                    title = COALESCE($1, title),
+                    slug = COALESCE($2, slug),
+                    body = COALESCE($3, body),
+                    excerpt = COALESCE($4, excerpt),
+                    category_id = COALESCE($5, category_id),
+                    tags = COALESCE($6, tags),
+                    meta_title = COALESCE($7, meta_title),
+                    meta_description = COALESCE($8, meta_description),
+                    featured_image = COALESCE($9, featured_image),
+                    status = COALESCE($10, status),
                     published_at = CASE 
-                        WHEN ? = '${constants.CONTENT_STATUS.PUBLISHED}' AND status != '${constants.CONTENT_STATUS.PUBLISHED}' 
-                        THEN datetime('now')
-                        ELSE published_at 
+                        WHEN $10 = '${constants.CONTENT_STATUS.PUBLISHED}' AND published_at IS NULL
+                        THEN CURRENT_TIMESTAMP
+                        ELSE published_at
                     END,
-                    updated_at = datetime('now')
-                WHERE id = ?
-            `, [
-                title, slug, body, excerpt, categoryId, tagsJson, 
-                metaTitle, metaDescription, featuredImage, status, 
-                status, id
-            ]);
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $11
+            `, [title, slug, body, excerpt, categoryId, tagsJson, metaTitle, metaDescription, featuredImage, status, id]);
 
             if (result.changes === 0) {
                 return null;
@@ -355,7 +374,7 @@ class ContentModel {
      */
     static async delete(id) {
         try {
-            const result = await run('DELETE FROM content WHERE id = ?', [id]);
+            const result = await run('DELETE FROM content WHERE id = $1', [id]);
 
             if (result.changes === 0) {
                 return false;
@@ -375,56 +394,34 @@ class ContentModel {
      */
     static async incrementViewCount(id) {
         try {
-            await run(`
-                UPDATE content 
-                SET view_count = view_count + 1 
-                WHERE id = ?
-            `, [id]);
+            await run('UPDATE content SET view_count = view_count + 1 WHERE id = $1', [id]);
         } catch (error) {
             logger.error('Error incrementing view count', error, { contentId: id });
-            // Don't throw error for view count updates
+            // Don't throw error for this operation
         }
     }
 
     /**
-     * Toggle like
+     * Toggle like for content
      */
     static async toggleLike(contentId, userId) {
         try {
             // Check if like exists
-            const existingLike = await get(`
-                SELECT id FROM likes 
-                WHERE content_id = ? AND user_id = ? AND type = 'content'
-            `, [contentId, userId]);
+            const existingLike = await get('SELECT id FROM likes WHERE content_id = $1 AND user_id = $2', [contentId, userId]);
 
             if (existingLike) {
                 // Remove like
-                await run('DELETE FROM likes WHERE id = ?', [existingLike.id]);
-                await run(`
-                    UPDATE content 
-                    SET like_count = like_count - 1 
-                    WHERE id = ?
-                `, [contentId]);
-
-                logger.info('Content like removed', { contentId, userId });
+                await run('DELETE FROM likes WHERE content_id = $1 AND user_id = $2', [contentId, userId]);
+                logger.info('Like removed', { contentId, userId });
                 return { liked: false };
             } else {
                 // Add like
-                await run(`
-                    INSERT INTO likes (user_id, content_id, type) 
-                    VALUES (?, ?, 'content')
-                `, [userId, contentId]);
-                await run(`
-                    UPDATE content 
-                    SET like_count = like_count + 1 
-                    WHERE id = ?
-                `, [contentId]);
-
-                logger.info('Content liked', { contentId, userId });
+                await run('INSERT INTO likes (content_id, user_id, created_at) VALUES ($1, $2, CURRENT_TIMESTAMP)', [contentId, userId]);
+                logger.info('Like added', { contentId, userId });
                 return { liked: true };
             }
         } catch (error) {
-            logger.error('Error toggling content like', error, { contentId, userId });
+            logger.error('Error toggling like', error, { contentId, userId });
             throw error;
         }
     }
@@ -436,19 +433,30 @@ class ContentModel {
         try {
             const content = await query(`
                 SELECT 
-                    c.id, c.title, c.slug, c.excerpt, c.type,
-                    c.featured_image, c.view_count, c.like_count,
-                    c.published_at,
+                    c.*,
                     u.display_name as author_name,
+                    u.profile_image as author_image,
                     cat.name as category_name,
+                    cat.slug as category_slug,
                     cat.color as category_color
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
-                WHERE c.status = ? AND c.is_featured = 1
-                ORDER BY c.published_at DESC
-                LIMIT ?
-            `, [constants.CONTENT_STATUS.PUBLISHED, limit]);
+                WHERE c.is_featured = true AND c.status = '${constants.CONTENT_STATUS.PUBLISHED}'
+                ORDER BY c.created_at DESC
+                LIMIT $1
+            `, [limit]);
+
+            // Parse tags for each content item
+            content.forEach(item => {
+                if (item.tags) {
+                    try {
+                        item.tags = JSON.parse(item.tags);
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                }
+            });
 
             return content;
         } catch (error) {
@@ -464,20 +472,36 @@ class ContentModel {
         try {
             const content = await query(`
                 SELECT 
-                    c.id, c.title, c.slug, c.excerpt, c.type,
-                    c.view_count, c.like_count, c.comment_count,
-                    c.published_at,
+                    c.*,
                     u.display_name as author_name,
+                    u.profile_image as author_image,
                     cat.name as category_name,
-                    cat.color as category_color
+                    cat.slug as category_slug,
+                    cat.color as category_color,
+                    COUNT(l.id) as like_count,
+                    COUNT(cm.id) as comment_count
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
-                WHERE c.status = ? 
-                AND datetime(c.published_at) > datetime('now', '-${days} days')
-                ORDER BY (c.view_count + c.like_count * 2 + c.comment_count * 3) DESC
-                LIMIT ?
-            `, [constants.CONTENT_STATUS.PUBLISHED, limit]);
+                LEFT JOIN likes l ON c.id = l.content_id
+                LEFT JOIN comments cm ON c.id = cm.content_id
+                WHERE c.status = '${constants.CONTENT_STATUS.PUBLISHED}'
+                    AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
+                GROUP BY c.id, u.display_name, u.profile_image, cat.name, cat.slug, cat.color
+                ORDER BY (like_count + comment_count + c.view_count) DESC
+                LIMIT $1
+            `, [limit]);
+
+            // Parse tags for each content item
+            content.forEach(item => {
+                if (item.tags) {
+                    try {
+                        item.tags = JSON.parse(item.tags);
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                }
+            });
 
             return content;
         } catch (error) {
@@ -492,51 +516,96 @@ class ContentModel {
     static async search(searchTerm, options = {}) {
         try {
             const {
+                page = 1,
+                limit = constants.PAGINATION.DEFAULT_LIMIT,
                 type = '',
-                category = '',
-                limit = 20,
-                offset = 0
+                category = ''
             } = options;
 
-            let whereClause = `WHERE c.status = ? AND (
-                c.title LIKE ? OR 
-                c.body LIKE ? OR 
-                c.excerpt LIKE ? OR
-                c.tags LIKE ?
-            )`;
+            const offset = (page - 1) * limit;
             
-            const searchParam = `%${searchTerm}%`;
-            const params = [constants.CONTENT_STATUS.PUBLISHED, searchParam, searchParam, searchParam, searchParam];
+            // Build WHERE clause
+            const whereConditions = [
+                `c.status = '${constants.CONTENT_STATUS.PUBLISHED}'`,
+                `(
+                    LOWER(c.title) LIKE LOWER($1) OR 
+                    LOWER(c.body) LIKE LOWER($1) OR 
+                    LOWER(c.excerpt) LIKE LOWER($1) OR
+                    LOWER(c.tags) LIKE LOWER($1)
+                )`
+            ];
+            const params = [`%${searchTerm}%`];
+            let paramIndex = 2;
 
             if (type) {
-                whereClause += ' AND c.type = ?';
+                whereConditions.push(`c.type = $${paramIndex}`);
                 params.push(type);
+                paramIndex++;
             }
 
             if (category) {
-                whereClause += ' AND c.category_id = ?';
+                whereConditions.push(`cat.slug = $${paramIndex}`);
                 params.push(category);
+                paramIndex++;
             }
 
+            const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+            // Get total count
+            const countResult = await get(`
+                SELECT COUNT(*) as total
+                FROM content c
+                LEFT JOIN categories cat ON c.category_id = cat.id
+                ${whereClause}
+            `, params);
+
+            const total = parseInt(countResult.total);
+
+            // Get search results
             const content = await query(`
                 SELECT 
-                    c.id, c.title, c.slug, c.excerpt, c.type,
-                    c.view_count, c.like_count, c.comment_count,
-                    c.published_at,
+                    c.*,
                     u.display_name as author_name,
+                    u.profile_image as author_image,
                     cat.name as category_name,
+                    cat.slug as category_slug,
                     cat.color as category_color
                 FROM content c
                 LEFT JOIN users u ON c.author_id = u.id
                 LEFT JOIN categories cat ON c.category_id = cat.id
                 ${whereClause}
-                ORDER BY c.published_at DESC
-                LIMIT ? OFFSET ?
+                ORDER BY 
+                    CASE 
+                        WHEN LOWER(c.title) LIKE LOWER($1) THEN 1
+                        WHEN LOWER(c.excerpt) LIKE LOWER($1) THEN 2
+                        ELSE 3
+                    END,
+                    c.created_at DESC
+                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
             `, [...params, limit, offset]);
 
-            return content;
+            // Parse tags for each content item
+            content.forEach(item => {
+                if (item.tags) {
+                    try {
+                        item.tags = JSON.parse(item.tags);
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                }
+            });
+
+            return {
+                content,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            };
         } catch (error) {
-            logger.error('Error searching content', error, { searchTerm });
+            logger.error('Error searching content', error);
             throw error;
         }
     }
@@ -547,34 +616,61 @@ class ContentModel {
     static async getByAuthor(authorId, options = {}) {
         try {
             const {
+                page = 1,
                 limit = constants.PAGINATION.DEFAULT_LIMIT,
-                offset = 0,
-                includeUnpublished = false
+                status = constants.CONTENT_STATUS.PUBLISHED
             } = options;
 
-            let whereClause = 'WHERE c.author_id = ?';
-            const params = [authorId];
+            const offset = (page - 1) * limit;
 
-            if (!includeUnpublished) {
-                whereClause += ' AND c.status = ?';
-                params.push(constants.CONTENT_STATUS.PUBLISHED);
-            }
+            // Get total count
+            const countResult = await get(`
+                SELECT COUNT(*) as total
+                FROM content
+                WHERE author_id = $1 AND status = $2
+            `, [authorId, status]);
 
+            const total = parseInt(countResult.total);
+
+            // Get content
             const content = await query(`
                 SELECT 
-                    c.id, c.title, c.slug, c.excerpt, c.type, c.status,
-                    c.view_count, c.like_count, c.comment_count,
-                    c.published_at, c.created_at,
+                    c.*,
                     cat.name as category_name,
-                    cat.color as category_color
+                    cat.slug as category_slug,
+                    cat.color as category_color,
+                    COUNT(l.id) as like_count,
+                    COUNT(cm.id) as comment_count
                 FROM content c
                 LEFT JOIN categories cat ON c.category_id = cat.id
-                ${whereClause}
+                LEFT JOIN likes l ON c.id = l.content_id
+                LEFT JOIN comments cm ON c.id = cm.content_id
+                WHERE c.author_id = $1 AND c.status = $2
+                GROUP BY c.id, cat.name, cat.slug, cat.color
                 ORDER BY c.created_at DESC
-                LIMIT ? OFFSET ?
-            `, [...params, limit, offset]);
+                LIMIT $3 OFFSET $4
+            `, [authorId, status, limit, offset]);
 
-            return content;
+            // Parse tags for each content item
+            content.forEach(item => {
+                if (item.tags) {
+                    try {
+                        item.tags = JSON.parse(item.tags);
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                }
+            });
+
+            return {
+                content,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            };
         } catch (error) {
             logger.error('Error getting content by author', error, { authorId });
             throw error;
@@ -582,15 +678,15 @@ class ContentModel {
     }
 
     /**
-     * Update content featured status (admin)
+     * Update featured status
      */
     static async updateFeaturedStatus(id, isFeatured) {
         try {
             const result = await run(`
                 UPDATE content 
-                SET is_featured = ?, updated_at = datetime('now') 
-                WHERE id = ?
-            `, [isFeatured ? 1 : 0, id]);
+                SET is_featured = $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = $2
+            `, [isFeatured, id]);
 
             if (result.changes === 0) {
                 return false;
@@ -613,19 +709,17 @@ class ContentModel {
             const stats = await get(`
                 SELECT 
                     COUNT(*) as total_content,
-                    COUNT(CASE WHEN type = 'article' THEN 1 END) as articles,
-                    COUNT(CASE WHEN type = 'discussion' THEN 1 END) as discussions,
-                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published,
-                    COUNT(CASE WHEN status = 'draft' THEN 1 END) as drafts,
+                    COUNT(CASE WHEN status = '${constants.CONTENT_STATUS.PUBLISHED}' THEN 1 END) as published_content,
+                    COUNT(CASE WHEN status = '${constants.CONTENT_STATUS.DRAFT}' THEN 1 END) as draft_content,
+                    COUNT(CASE WHEN is_featured = true THEN 1 END) as featured_content,
                     SUM(view_count) as total_views,
-                    SUM(like_count) as total_likes,
-                    SUM(comment_count) as total_comments
+                    AVG(view_count) as avg_views
                 FROM content
             `);
 
             return stats;
         } catch (error) {
-            logger.error('Error getting content statistics', error);
+            logger.error('Error getting content stats', error);
             throw error;
         }
     }

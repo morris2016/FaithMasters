@@ -1,7 +1,7 @@
-const { query, get, run } = require('../config/database');
+const { get, run, query } = require('../config/database');
 const { hashPassword, verifyPassword } = require('../config/auth');
+const logger = require('../utils/logger');
 const constants = require('../config/constants');
-const { logger } = require('../utils/logger');
 
 /**
  * User Model
@@ -19,37 +19,42 @@ class UserModel {
                 password,
                 firstName,
                 lastName,
-                faithTradition = null,
-                bio = null,
-                displayName = null
+                displayName,
+                bio,
+                faithTradition,
+                role = 'user',
+                status = 'active'
             } = userData;
 
             // Hash password
             const passwordHash = await hashPassword(password);
 
-            // Generate display name if not provided
-            const finalDisplayName = displayName || `${firstName} ${lastName}`;
-
             const result = await run(`
                 INSERT INTO users (
                     email, password_hash, first_name, last_name, 
-                    display_name, faith_tradition, bio, role, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    display_name, bio, faith_tradition, role, status,
+                    email_verified, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
             `, [
                 email.toLowerCase(),
                 passwordHash,
                 firstName,
                 lastName,
-                finalDisplayName,
-                faithTradition,
+                displayName,
                 bio,
-                constants.ROLES.USER,
-                constants.USER_STATUS.ACTIVE
+                faithTradition,
+                role,
+                status,
+                false
             ]);
 
-            logger.info('User created', { userId: result.lastID, email });
+            const userId = result.lastID;
 
-            return await this.findById(result.lastID);
+            logger.logAuth('User created', userId, { email });
+
+            // Return user without password hash
+            return await this.findById(userId);
         } catch (error) {
             logger.error('Error creating user', error, { email: userData.email });
             throw error;
@@ -63,16 +68,17 @@ class UserModel {
         try {
             const user = await get(`
                 SELECT 
-                    id, email, first_name, last_name, display_name, 
-                    bio, faith_tradition, role, status, email_verified,
-                    profile_image, last_login_at, created_at, updated_at
+                    id, email, password_hash, first_name, last_name, 
+                    display_name, bio, faith_tradition, role, status, 
+                    email_verified, profile_image, last_login_at, 
+                    created_at, updated_at
                 FROM users 
-                WHERE id = ?
+                WHERE id = $1
             `, [id]);
 
             return user;
         } catch (error) {
-            logger.error('Error finding user by ID', error, { userId: id });
+            logger.error('Error finding user by ID', error, { id });
             throw error;
         }
     }
@@ -89,7 +95,7 @@ class UserModel {
                     email_verified, profile_image, last_login_at, 
                     created_at, updated_at
                 FROM users 
-                WHERE email = ?
+                WHERE email = $1
             `, [email.toLowerCase()]);
 
             return user;
@@ -150,14 +156,14 @@ class UserModel {
             const result = await run(`
                 UPDATE users 
                 SET 
-                    first_name = COALESCE(?, first_name),
-                    last_name = COALESCE(?, last_name),
-                    display_name = COALESCE(?, display_name),
-                    bio = COALESCE(?, bio),
-                    faith_tradition = COALESCE(?, faith_tradition),
-                    profile_image = COALESCE(?, profile_image),
-                    updated_at = datetime('now')
-                WHERE id = ?
+                    first_name = COALESCE($1, first_name),
+                    last_name = COALESCE($2, last_name),
+                    display_name = COALESCE($3, display_name),
+                    bio = COALESCE($4, bio),
+                    faith_tradition = COALESCE($5, faith_tradition),
+                    profile_image = COALESCE($6, profile_image),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $7
             `, [firstName, lastName, displayName, bio, faithTradition, profileImage, userId]);
 
             if (result.changes === 0) {
@@ -179,7 +185,7 @@ class UserModel {
     static async changePassword(userId, currentPassword, newPassword) {
         try {
             // Get current password hash
-            const user = await get('SELECT password_hash FROM users WHERE id = ?', [userId]);
+            const user = await get('SELECT password_hash FROM users WHERE id = $1', [userId]);
             
             if (!user) {
                 return { success: false, message: 'User not found' };
@@ -199,8 +205,8 @@ class UserModel {
             // Update password
             await run(`
                 UPDATE users 
-                SET password_hash = ?, updated_at = datetime('now') 
-                WHERE id = ?
+                SET password_hash = $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = $2
             `, [newPasswordHash, userId]);
 
             logger.logAuth('Password changed', userId);
@@ -219,8 +225,8 @@ class UserModel {
         try {
             await run(`
                 UPDATE users 
-                SET last_login_at = datetime('now') 
-                WHERE id = ?
+                SET last_login_at = CURRENT_TIMESTAMP 
+                WHERE id = $1
             `, [userId]);
         } catch (error) {
             logger.error('Error updating last login', error, { userId });
@@ -241,16 +247,16 @@ class UserModel {
                     (
                         SELECT COUNT(*) FROM likes l2 
                         WHERE l2.content_id IN (
-                            SELECT id FROM content WHERE author_id = ?
+                            SELECT id FROM content WHERE author_id = $1
                         ) OR l2.comment_id IN (
-                            SELECT id FROM comments WHERE author_id = ?
+                            SELECT id FROM comments WHERE author_id = $2
                         )
                     ) as likes_received
                 FROM users u
                 LEFT JOIN content c ON c.author_id = u.id
                 LEFT JOIN comments cm ON cm.author_id = u.id
                 LEFT JOIN likes l ON l.user_id = u.id
-                WHERE u.id = ?
+                WHERE u.id = $3
             `, [userId, userId, userId]);
 
             return stats;
@@ -277,47 +283,56 @@ class UserModel {
 
             const offset = (page - 1) * limit;
             
-            let whereClause = 'WHERE 1=1';
+            // Build WHERE clause
+            const whereConditions = [];
             const params = [];
+            let paramIndex = 1;
 
             if (search) {
-                whereClause += ` AND (
-                    first_name LIKE ? OR 
-                    last_name LIKE ? OR 
-                    display_name LIKE ? OR 
-                    email LIKE ?
-                )`;
-                const searchParam = `%${search}%`;
-                params.push(searchParam, searchParam, searchParam, searchParam);
+                whereConditions.push(`(
+                    LOWER(first_name) LIKE LOWER($${paramIndex}) OR 
+                    LOWER(last_name) LIKE LOWER($${paramIndex}) OR 
+                    LOWER(email) LIKE LOWER($${paramIndex}) OR 
+                    LOWER(display_name) LIKE LOWER($${paramIndex})
+                )`);
+                params.push(`%${search}%`);
+                paramIndex++;
             }
 
             if (role) {
-                whereClause += ' AND role = ?';
+                whereConditions.push(`role = $${paramIndex}`);
                 params.push(role);
+                paramIndex++;
             }
 
             if (status) {
-                whereClause += ' AND status = ?';
+                whereConditions.push(`status = $${paramIndex}`);
                 params.push(status);
+                paramIndex++;
             }
 
-            // Get total count
-            const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
-            const { total } = await get(countQuery, params);
+            const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-            // Get users
-            const usersQuery = `
-                SELECT 
-                    id, email, first_name, last_name, display_name,
-                    faith_tradition, role, status, email_verified,
-                    last_login_at, created_at
+            // Get total count
+            const countResult = await get(`
+                SELECT COUNT(*) as total 
                 FROM users 
                 ${whereClause}
-                ORDER BY ${sort} ${order}
-                LIMIT ? OFFSET ?
-            `;
+            `, params);
 
-            const users = await query(usersQuery, [...params, limit, offset]);
+            const total = parseInt(countResult.total);
+
+            // Get users
+            const users = await query(`
+                SELECT 
+                    id, email, first_name, last_name, display_name, 
+                    bio, faith_tradition, role, status, email_verified, 
+                    profile_image, last_login_at, created_at, updated_at
+                FROM users 
+                ${whereClause}
+                ORDER BY ${sort} ${order.toUpperCase()}
+                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+            `, [...params, limit, offset]);
 
             return {
                 users,
@@ -329,7 +344,7 @@ class UserModel {
                 }
             };
         } catch (error) {
-            logger.error('Error getting users list', error);
+            logger.error('Error getting users', error);
             throw error;
         }
     }
@@ -340,21 +355,21 @@ class UserModel {
     static async updateUserRoleStatus(userId, updates) {
         try {
             const { role, status } = updates;
-
+            
             const result = await run(`
                 UPDATE users 
                 SET 
-                    role = COALESCE(?, role),
-                    status = COALESCE(?, status),
-                    updated_at = datetime('now')
-                WHERE id = ?
+                    role = COALESCE($1, role),
+                    status = COALESCE($2, status),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $3
             `, [role, status, userId]);
 
             if (result.changes === 0) {
                 return null;
             }
 
-            logger.info('User role/status updated', { userId, role, status });
+            logger.info('User role/status updated', { userId, updates });
 
             return await this.findById(userId);
         } catch (error) {
@@ -368,13 +383,13 @@ class UserModel {
      */
     static async deleteUser(userId) {
         try {
-            const result = await run('DELETE FROM users WHERE id = ?', [userId]);
+            const result = await run('DELETE FROM users WHERE id = $1', [userId]);
 
             if (result.changes === 0) {
                 return false;
             }
 
-            logger.info('User deleted', { userId });
+            logger.logAuth('User deleted', userId);
 
             return true;
         } catch (error) {
@@ -388,7 +403,7 @@ class UserModel {
      */
     static async emailExists(email) {
         try {
-            const user = await get('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
+            const user = await get('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
             return !!user;
         } catch (error) {
             logger.error('Error checking email existence', error, { email });
@@ -397,38 +412,36 @@ class UserModel {
     }
 
     /**
-     * Get user activity feed
+     * Get user activity
      */
     static async getUserActivity(userId, limit = 20) {
         try {
-            const activities = await query(`
+            const activity = await query(`
                 SELECT 
                     'content' as type,
                     c.id,
                     c.title,
-                    c.type as content_type,
-                    c.created_at,
-                    NULL as parent_id
+                    c.created_at as timestamp,
+                    c.status
                 FROM content c
-                WHERE c.author_id = ?
+                WHERE c.author_id = $1
                 
                 UNION ALL
                 
                 SELECT 
                     'comment' as type,
                     cm.id,
-                    SUBSTR(cm.body, 1, 100) as title,
-                    'comment' as content_type,
-                    cm.created_at,
-                    cm.content_id as parent_id
+                    cm.content as title,
+                    cm.created_at as timestamp,
+                    cm.status
                 FROM comments cm
-                WHERE cm.author_id = ?
+                WHERE cm.author_id = $2
                 
-                ORDER BY created_at DESC
-                LIMIT ?
+                ORDER BY timestamp DESC
+                LIMIT $3
             `, [userId, userId, limit]);
 
-            return activities;
+            return activity;
         } catch (error) {
             logger.error('Error getting user activity', error, { userId });
             throw error;
@@ -436,21 +449,21 @@ class UserModel {
     }
 
     /**
-     * Verify email address
+     * Verify user email
      */
     static async verifyEmail(userId) {
         try {
             const result = await run(`
                 UPDATE users 
-                SET email_verified = 1, updated_at = datetime('now') 
-                WHERE id = ?
+                SET email_verified = true, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = $1
             `, [userId]);
 
             if (result.changes === 0) {
                 return false;
             }
 
-            logger.info('Email verified', { userId });
+            logger.logAuth('Email verified', userId);
 
             return true;
         } catch (error) {

@@ -1,6 +1,6 @@
 const { query, get, run } = require('../config/database');
 const constants = require('../config/constants');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Comment Model
@@ -23,16 +23,11 @@ class CommentModel {
 
             const result = await run(`
                 INSERT INTO comments (
-                    content_id, author_id, body, parent_id, status
-                ) VALUES (?, ?, ?, ?, ?)
+                    content_id, author_id, body, parent_id, status,
+                    created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
             `, [contentId, authorId, body, parentId, status]);
-
-            // Update content comment count
-            await run(`
-                UPDATE content 
-                SET comment_count = comment_count + 1 
-                WHERE id = ?
-            `, [contentId]);
 
             logger.info('Comment created', {
                 commentId: result.lastID,
@@ -60,7 +55,7 @@ class CommentModel {
                     u.profile_image as author_image
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.id
-                WHERE c.id = ?
+                WHERE c.id = $1
             `, [id]);
 
             return comment;
@@ -94,9 +89,9 @@ class CommentModel {
                     u.id as author_id
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.id
-                WHERE c.content_id = ? AND c.parent_id IS NULL AND c.status = ?
-                ORDER BY c.${sort} ${order}
-                LIMIT ? OFFSET ?
+                WHERE c.content_id = $1 AND c.parent_id IS NULL AND c.status = $2
+                ORDER BY c.${sort} ${order.toUpperCase()}
+                LIMIT $3 OFFSET $4
             `, [contentId, status, limit, offset]);
 
             // Get replies for each top-level comment
@@ -110,7 +105,7 @@ class CommentModel {
                             u.id as author_id
                         FROM comments c
                         LEFT JOIN users u ON c.author_id = u.id
-                        WHERE c.parent_id = ? AND c.status = ?
+                        WHERE c.parent_id = $1 AND c.status = $2
                         ORDER BY c.created_at ASC
                     `, [comment.id, status]);
 
@@ -122,11 +117,13 @@ class CommentModel {
             );
 
             // Get total count for pagination
-            const { total } = await get(`
+            const countResult = await get(`
                 SELECT COUNT(*) as total 
                 FROM comments 
-                WHERE content_id = ? AND parent_id IS NULL AND status = ?
+                WHERE content_id = $1 AND parent_id IS NULL AND status = $2
             `, [contentId, status]);
+
+            const total = parseInt(countResult.total);
 
             return {
                 comments: commentsWithReplies,
@@ -153,10 +150,10 @@ class CommentModel {
             const result = await run(`
                 UPDATE comments 
                 SET 
-                    body = COALESCE(?, body),
-                    status = COALESCE(?, status),
-                    updated_at = datetime('now')
-                WHERE id = ?
+                    body = COALESCE($1, body),
+                    status = COALESCE($2, status),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $3
             `, [body, status, id]);
 
             if (result.changes === 0) {
@@ -184,18 +181,11 @@ class CommentModel {
             }
 
             // Delete the comment
-            const result = await run('DELETE FROM comments WHERE id = ?', [id]);
+            const result = await run('DELETE FROM comments WHERE id = $1', [id]);
 
             if (result.changes === 0) {
                 return false;
             }
-
-            // Update content comment count
-            await run(`
-                UPDATE content 
-                SET comment_count = comment_count - 1 
-                WHERE id = ?
-            `, [comment.content_id]);
 
             logger.info('Comment deleted', { commentId: id, contentId: comment.content_id });
 
@@ -207,39 +197,23 @@ class CommentModel {
     }
 
     /**
-     * Toggle like on comment
+     * Toggle like for comment
      */
     static async toggleLike(commentId, userId) {
         try {
             // Check if like exists
-            const existingLike = await get(`
-                SELECT id FROM likes 
-                WHERE comment_id = ? AND user_id = ? AND type = 'comment'
-            `, [commentId, userId]);
+            const existingLike = await get('SELECT id FROM likes WHERE comment_id = $1 AND user_id = $2', [commentId, userId]);
 
             if (existingLike) {
                 // Remove like
-                await run('DELETE FROM likes WHERE id = ?', [existingLike.id]);
-                await run(`
-                    UPDATE comments 
-                    SET like_count = like_count - 1 
-                    WHERE id = ?
-                `, [commentId]);
-
+                await run('DELETE FROM likes WHERE comment_id = $1 AND user_id = $2', [commentId, userId]);
+                await run('UPDATE comments SET like_count = like_count - 1 WHERE id = $1', [commentId]);
                 logger.info('Comment like removed', { commentId, userId });
                 return { liked: false };
             } else {
                 // Add like
-                await run(`
-                    INSERT INTO likes (user_id, comment_id, type) 
-                    VALUES (?, ?, 'comment')
-                `, [userId, commentId]);
-                await run(`
-                    UPDATE comments 
-                    SET like_count = like_count + 1 
-                    WHERE id = ?
-                `, [commentId]);
-
+                await run('INSERT INTO likes (comment_id, user_id, created_at) VALUES ($1, $2, CURRENT_TIMESTAMP)', [commentId, userId]);
+                await run('UPDATE comments SET like_count = like_count + 1 WHERE id = $1', [commentId]);
                 logger.info('Comment liked', { commentId, userId });
                 return { liked: true };
             }
@@ -259,15 +233,15 @@ class CommentModel {
                     c.id, c.body, c.created_at,
                     u.display_name as author_name,
                     u.profile_image as author_image,
-                    content.title as content_title,
-                    content.slug as content_slug
+                    cont.title as content_title,
+                    cont.slug as content_slug
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.id
-                LEFT JOIN content ON c.content_id = content.id
-                WHERE c.status = ?
+                LEFT JOIN content cont ON c.content_id = cont.id
+                WHERE c.status = '${constants.CONTENT_STATUS.PUBLISHED}'
                 ORDER BY c.created_at DESC
-                LIMIT ?
-            `, [constants.CONTENT_STATUS.PUBLISHED, limit]);
+                LIMIT $1
+            `, [limit]);
 
             return comments;
         } catch (error) {
@@ -282,33 +256,45 @@ class CommentModel {
     static async getByUser(userId, options = {}) {
         try {
             const {
+                page = 1,
                 limit = 20,
-                offset = 0,
-                includeUnpublished = false
+                status = constants.CONTENT_STATUS.PUBLISHED
             } = options;
 
-            let whereClause = 'WHERE c.author_id = ?';
-            const params = [userId];
+            const offset = (page - 1) * limit;
 
-            if (!includeUnpublished) {
-                whereClause += ' AND c.status = ?';
-                params.push(constants.CONTENT_STATUS.PUBLISHED);
-            }
+            // Get total count
+            const countResult = await get(`
+                SELECT COUNT(*) as total
+                FROM comments
+                WHERE author_id = $1 AND status = $2
+            `, [userId, status]);
 
+            const total = parseInt(countResult.total);
+
+            // Get comments
             const comments = await query(`
                 SELECT 
-                    c.id, c.body, c.like_count, c.created_at, c.status,
-                    content.title as content_title,
-                    content.slug as content_slug,
-                    content.type as content_type
+                    c.id, c.body, c.created_at, c.like_count,
+                    cont.title as content_title,
+                    cont.slug as content_slug,
+                    cont.type as content_type
                 FROM comments c
-                LEFT JOIN content ON c.content_id = content.id
-                ${whereClause}
+                LEFT JOIN content cont ON c.content_id = cont.id
+                WHERE c.author_id = $1 AND c.status = $2
                 ORDER BY c.created_at DESC
-                LIMIT ? OFFSET ?
-            `, [...params, limit, offset]);
+                LIMIT $3 OFFSET $4
+            `, [userId, status, limit, offset]);
 
-            return comments;
+            return {
+                comments,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            };
         } catch (error) {
             logger.error('Error getting comments by user', error, { userId });
             throw error;
@@ -323,17 +309,17 @@ class CommentModel {
             const stats = await get(`
                 SELECT 
                     COUNT(*) as total_comments,
-                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published,
-                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-                    COUNT(CASE WHEN parent_id IS NULL THEN 1 END) as top_level,
-                    COUNT(CASE WHEN parent_id IS NOT NULL THEN 1 END) as replies,
-                    SUM(like_count) as total_likes
+                    COUNT(CASE WHEN status = '${constants.CONTENT_STATUS.PUBLISHED}' THEN 1 END) as published_comments,
+                    COUNT(CASE WHEN status = '${constants.CONTENT_STATUS.PENDING}' THEN 1 END) as pending_comments,
+                    COUNT(CASE WHEN status = '${constants.CONTENT_STATUS.SPAM}' THEN 1 END) as spam_comments,
+                    SUM(like_count) as total_likes,
+                    AVG(like_count) as avg_likes
                 FROM comments
             `);
 
             return stats;
         } catch (error) {
-            logger.error('Error getting comment statistics', error);
+            logger.error('Error getting comment stats', error);
             throw error;
         }
     }
@@ -346,32 +332,35 @@ class CommentModel {
             const {
                 page = 1,
                 limit = 20,
-                status = 'pending'
+                status = constants.CONTENT_STATUS.PENDING
             } = options;
 
             const offset = (page - 1) * limit;
 
+            // Get total count
+            const countResult = await get(`
+                SELECT COUNT(*) as total
+                FROM comments
+                WHERE status = $1
+            `, [status]);
+
+            const total = parseInt(countResult.total);
+
+            // Get comments
             const comments = await query(`
                 SELECT 
-                    c.id, c.body, c.created_at, c.status,
+                    c.*,
                     u.display_name as author_name,
                     u.email as author_email,
-                    content.title as content_title,
-                    content.slug as content_slug
+                    cont.title as content_title,
+                    cont.slug as content_slug
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.id
-                LEFT JOIN content ON c.content_id = content.id
-                WHERE c.status = ?
+                LEFT JOIN content cont ON c.content_id = cont.id
+                WHERE c.status = $1
                 ORDER BY c.created_at ASC
-                LIMIT ? OFFSET ?
+                LIMIT $2 OFFSET $3
             `, [status, limit, offset]);
-
-            // Get total count
-            const { total } = await get(`
-                SELECT COUNT(*) as total 
-                FROM comments 
-                WHERE status = ?
-            `, [status]);
 
             return {
                 comments,
@@ -389,17 +378,20 @@ class CommentModel {
     }
 
     /**
-     * Moderate comment (approve/reject)
+     * Moderate comment
      */
     static async moderate(id, action, moderatorId) {
         try {
-            let status;
+            let newStatus;
             switch (action) {
                 case 'approve':
-                    status = constants.CONTENT_STATUS.PUBLISHED;
+                    newStatus = constants.CONTENT_STATUS.PUBLISHED;
                     break;
                 case 'reject':
-                    status = constants.CONTENT_STATUS.REJECTED;
+                    newStatus = constants.CONTENT_STATUS.REJECTED;
+                    break;
+                case 'spam':
+                    newStatus = constants.CONTENT_STATUS.SPAM;
                     break;
                 default:
                     throw new Error('Invalid moderation action');
@@ -407,19 +399,15 @@ class CommentModel {
 
             const result = await run(`
                 UPDATE comments 
-                SET status = ?, updated_at = datetime('now') 
-                WHERE id = ?
-            `, [status, id]);
+                SET status = $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = $2
+            `, [newStatus, id]);
 
             if (result.changes === 0) {
                 return false;
             }
 
-            logger.info('Comment moderated', { 
-                commentId: id, 
-                action, 
-                moderatorId 
-            });
+            logger.info('Comment moderated', { commentId: id, action, moderatorId });
 
             return true;
         } catch (error) {
@@ -433,25 +421,15 @@ class CommentModel {
      */
     static async report(commentId, reporterId, reason) {
         try {
-            // Check if already reported by this user
-            const existingReport = await get(`
-                SELECT id FROM reports 
-                WHERE comment_id = ? AND reporter_id = ?
-            `, [commentId, reporterId]);
-
-            if (existingReport) {
-                return { success: false, message: 'Comment already reported by this user' };
-            }
-
-            await run(`
-                INSERT INTO reports (
-                    comment_id, reporter_id, reason, status
-                ) VALUES (?, ?, ?, 'pending')
+            const result = await run(`
+                INSERT INTO comment_reports (
+                    comment_id, reporter_id, reason, created_at
+                ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
             `, [commentId, reporterId, reason]);
 
             logger.info('Comment reported', { commentId, reporterId, reason });
 
-            return { success: true, message: 'Comment reported successfully' };
+            return true;
         } catch (error) {
             logger.error('Error reporting comment', error, { commentId });
             throw error;
@@ -463,34 +441,22 @@ class CommentModel {
      */
     static async canEdit(commentId, userId, userRole) {
         try {
-            const comment = await get(`
-                SELECT author_id, created_at 
-                FROM comments 
-                WHERE id = ?
-            `, [commentId]);
-
+            const comment = await this.findById(commentId);
+            
             if (!comment) {
                 return false;
             }
 
             // Admins and moderators can edit any comment
-            if (userRole === constants.ROLES.ADMIN || userRole === constants.ROLES.MODERATOR) {
+            if (userRole === 'admin' || userRole === 'moderator') {
                 return true;
             }
 
-            // Users can edit their own comments within 30 minutes
-            if (comment.author_id === userId) {
-                const created = new Date(comment.created_at);
-                const now = new Date();
-                const diffMinutes = (now - created) / (1000 * 60);
-                
-                return diffMinutes <= 30;
-            }
-
-            return false;
+            // Users can only edit their own comments
+            return comment.author_id === userId;
         } catch (error) {
             logger.error('Error checking comment edit permission', error, { commentId, userId });
-            throw error;
+            return false;
         }
     }
 }

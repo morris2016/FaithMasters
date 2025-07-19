@@ -9,6 +9,9 @@ const constants = require('../config/constants');
 const { healthCheck, getStats } = require('../config/database');
 const { logger } = require('../utils/logger');
 
+// Import database setup function
+const { setupDatabase } = require('../../api/setup-db');
+
 const router = express.Router();
 
 /**
@@ -18,6 +21,30 @@ const router = express.Router();
 
 // Apply general rate limiting to all API routes
 router.use(generalRateLimit);
+
+/**
+ * @route   GET /api/setup
+ * @desc    Setup database tables and seed data
+ * @access  Public
+ */
+router.get('/setup', asyncHandler(async (req, res) => {
+    try {
+        console.log('🚀 Database setup requested via API...');
+        await setupDatabase();
+        res.json({
+            success: true,
+            message: 'Database setup completed successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Database setup failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+}));
 
 /**
  * @route   GET /api/health

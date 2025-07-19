@@ -87,11 +87,12 @@ app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         database: dbInitialized ? 'connected' : 'disconnected',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: '1.0.1'
     });
 });
 
-// Database setup endpoint
+// Database setup endpoint (POST)
 app.post('/api/setup-db', async (req, res) => {
     try {
         const { setupDatabase } = require('./setup-db');
@@ -103,6 +104,49 @@ app.post('/api/setup-db', async (req, res) => {
         });
     } catch (error) {
         console.error('Database setup failed:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Database setup endpoint (GET) - for easier access
+app.get('/api/setup-db', async (req, res) => {
+    try {
+        console.log('🚀 Database setup requested...');
+        const { setupDatabase } = require('./setup-db');
+        await setupDatabase();
+        res.json({ 
+            success: true, 
+            message: 'Database setup completed successfully',
+            timestamp: new Date().toISOString(),
+            version: '1.0.1'
+        });
+    } catch (error) {
+        console.error('Database setup failed:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Simple database setup trigger
+app.get('/api/init', async (req, res) => {
+    try {
+        console.log('🔧 Database initialization triggered...');
+        const { setupDatabase } = require('./setup-db');
+        await setupDatabase();
+        res.json({ 
+            success: true, 
+            message: 'Database initialized successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Database initialization failed:', error);
         res.status(500).json({ 
             success: false, 
             error: error.message,
