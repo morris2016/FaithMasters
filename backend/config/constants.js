@@ -18,7 +18,7 @@ const constants = {
 
     // Database Configuration
     DATABASE: {
-        PATH: process.env.DB_PATH || 'backend/faithmasters.sqlite',
+        PATH: process.env.DB_PATH,
         WAL_MODE: process.env.DB_WAL_MODE === 'true',
         CONNECTION_TIMEOUT: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 30000,
         BACKUP_INTERVAL: 24 * 60 * 60 * 1000 // 24 hours

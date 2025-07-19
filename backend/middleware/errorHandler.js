@@ -60,31 +60,6 @@ const notFoundHandler = (req, res, next) => {
 const handleDatabaseError = (error) => {
     logger.error('Database error', error);
 
-    // SQLite specific errors
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-        return new AppError(
-            'Resource already exists',
-            constants.HTTP_STATUS.CONFLICT,
-            'DUPLICATE_ENTRY'
-        );
-    }
-
-    if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-        return new AppError(
-            'Referenced resource does not exist',
-            constants.HTTP_STATUS.BAD_REQUEST,
-            'FOREIGN_KEY_CONSTRAINT'
-        );
-    }
-
-    if (error.code === 'SQLITE_CONSTRAINT_CHECK') {
-        return new AppError(
-            'Invalid data provided',
-            constants.HTTP_STATUS.BAD_REQUEST,
-            'CHECK_CONSTRAINT'
-        );
-    }
-
     // Generic database error
     return new AppError(
         'Database operation failed',
@@ -190,8 +165,6 @@ const errorHandler = (error, req, res, next) => {
             appError = handleValidationError(error);
         } else if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError' || error.name === 'NotBeforeError') {
             appError = handleJWTError(error);
-        } else if (error.code && error.code.startsWith('SQLITE_')) {
-            appError = handleDatabaseError(error);
         } else if (error.code && error.code.startsWith('LIMIT_')) {
             appError = handleMulterError(error);
         } else if (error.name === 'CastError') {
