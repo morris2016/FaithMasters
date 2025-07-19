@@ -109,13 +109,14 @@ class DatabaseSeeder {
         ];
 
         for (const category of categories) {
-            const { lastID } = await this.db.run(
-                `INSERT OR IGNORE INTO categories (name, description, color, icon, created_at) 
-                 VALUES (?, ?, ?, ?, datetime('now'))`,
+            const result = await this.db.run(
+                `INSERT INTO categories (name, description, color, icon, created_at) 
+                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+                 ON CONFLICT (name) DO NOTHING`,
                 [category.name, category.description, category.color, category.icon]
             );
             
-            if (lastID) {
+            if (result.rowCount > 0) {
                 console.log(`  ✓ Created category: ${category.name}`);
             }
         }
@@ -129,7 +130,7 @@ class DatabaseSeeder {
         
         // Check if admin already exists
         const existingAdmin = await this.db.get(
-            'SELECT id FROM users WHERE email = ?',
+            'SELECT id FROM users WHERE email = $1',
             [adminEmail]
         );
         
@@ -140,11 +141,11 @@ class DatabaseSeeder {
         
         const hashedPassword = await bcrypt.hash(adminPassword, 12);
         
-        const { lastID } = await this.db.run(
+        const result = await this.db.run(
             `INSERT INTO users (
                 email, password_hash, first_name, last_name, role, status, 
                 email_verified, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
             [
                 adminEmail,
                 hashedPassword,
@@ -168,7 +169,7 @@ class DatabaseSeeder {
         
         // Get admin user ID
         const adminUser = await this.db.get(
-            'SELECT id FROM users WHERE role = ? ORDER BY created_at LIMIT 1',
+            'SELECT id FROM users WHERE role = $1 ORDER BY created_at LIMIT 1',
             ['admin']
         );
         
@@ -263,11 +264,11 @@ I'm hoping to hear from people of different backgrounds about how doubt and ques
             const article = sampleArticles[i];
             const category = categories[i % categories.length];
             
-            const { lastID } = await this.db.run(
+            const result = await this.db.run(
                 `INSERT INTO content (
                     title, slug, excerpt, body, type, status, author_id, category_id,
                     view_count, like_count, comment_count, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                 [
                     article.title,
                     this.generateSlug(article.title),
@@ -291,11 +292,11 @@ I'm hoping to hear from people of different backgrounds about how doubt and ques
             const discussion = sampleDiscussions[i];
             const category = categories[(i + 2) % categories.length];
             
-            const { lastID } = await this.db.run(
+            const result = await this.db.run(
                 `INSERT INTO content (
                     title, slug, excerpt, body, type, status, author_id, category_id,
                     view_count, like_count, comment_count, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                 [
                     discussion.title,
                     this.generateSlug(discussion.title),
@@ -320,13 +321,13 @@ I'm hoping to hear from people of different backgrounds about how doubt and ques
         
         // Get admin user
         const adminUser = await this.db.get(
-            'SELECT id FROM users WHERE role = ? ORDER BY created_at LIMIT 1',
+            'SELECT id FROM users WHERE role = $1 ORDER BY created_at LIMIT 1',
             ['admin']
         );
         
         // Get published content
         const content = await this.db.query(
-            'SELECT id, title, type FROM content WHERE status = ? LIMIT 3',
+            'SELECT id, title, type FROM content WHERE status = $1 LIMIT 3',
             ['published']
         );
         
@@ -354,14 +355,14 @@ I'm hoping to hear from people of different backgrounds about how doubt and ques
                 await this.db.run(
                     `INSERT INTO comments (
                         content_id, author_id, body, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
+                    ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                     [contentItem.id, adminUser.id, comment, 'published']
                 );
             }
             
             // Update comment count for content
             await this.db.run(
-                'UPDATE content SET comment_count = ? WHERE id = ?',
+                'UPDATE content SET comment_count = $1 WHERE id = $2',
                 [commentCount, contentItem.id]
             );
             
