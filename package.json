@@ -7,12 +7,8 @@
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
     "migrate": "node backend/migrations/migrate.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
     "build": "echo Build complete!",
-    "seed": "node backend/utils/seed.js",
-    "reset-db": "rm -f backend/faithmasters.sqlite && npm run migrate && npm run seed"
+    "seed": "node backend/utils/seed.js"
   },
   "keywords": [
     "interfaith",
