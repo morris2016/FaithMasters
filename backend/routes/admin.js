@@ -309,14 +309,14 @@ router.put('/users/:id', requireAdmin, validateAdminUserUpdate, asyncHandler(asy
         });
     }
 
-    const setClause = updateFields.map(field => `${field} = ?`).join(', ');
+    const setClause = updateFields.map((field, index) => `${field} = $${index + 1}`).join(', ');
     const values = updateFields.map(field => updateData[field]);
     values.push(req.params.id);
 
     await run(`
         UPDATE users 
-        SET ${setClause}, updated_at = datetime('now')
-        WHERE id = ?
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${values.length}
     `, values);
 
     // Get updated user
@@ -1109,8 +1109,11 @@ router.put('/settings', requireAdmin, validateSettings, asyncHandler(async (req,
         // Update each setting
         for (const setting of settings) {
             await run(`
-                INSERT OR REPLACE INTO settings (key, value, updated_at)
-                VALUES (?, ?, datetime('now'))
+                INSERT INTO settings (key, value, updated_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (key) DO UPDATE SET 
+                    value = EXCLUDED.value,
+                    updated_at = CURRENT_TIMESTAMP
             `, [setting.key, setting.value]);
         }
 

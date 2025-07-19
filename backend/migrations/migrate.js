@@ -29,7 +29,7 @@ class MigrationRunner {
             CREATE TABLE IF NOT EXISTS ${this.migrationTable} (
                 version TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                executed_at TEXT DEFAULT (datetime('now'))
+                executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
         console.log('✅ Migration tracking table ready');
